@@ -1,8 +1,10 @@
 import sys
 
 def matchPattern(text: str, pattern: str) -> bool:
-    textIdx = 0
+    if pattern[0] == "^":
+        return matchHere(text, 0, pattern, 1)
 
+    textIdx = 0
     while True:
         if matchHere(text, textIdx, pattern, 0):
             return True
