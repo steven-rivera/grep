@@ -33,6 +33,31 @@ def matchHere(text: str, textIdx: int, pattern: str, patternIdx: str) -> bool:
         if pattern[patternIdx] == "w" and textIdx != textEnd and text[textIdx].isalpha():
             return matchHere(text, textIdx+1, pattern, patternIdx+1)
         
+    if pattern[patternIdx] == "[":
+        patternIdx += 1
+        negated, seenClosingBracket = False, False
+        charGroup = set()
+        while patternIdx != patternEnd:
+            if pattern[patternIdx] == "]":
+                seenClosingBracket = True
+                break
+            if pattern[patternIdx] == "^":
+                negated = True
+            else:
+                charGroup.add(pattern[patternIdx])
+            patternIdx += 1
+
+        if not seenClosingBracket:
+            raise RuntimeError(f"Invalid pattern: No closing bracket ']'")
+        
+        if textIdx != textEnd and negated and text[textIdx] not in charGroup:
+            return matchHere(text, textIdx+1, pattern, patternIdx+1)
+        
+        if textIdx != textEnd and not negated and text[textIdx] in charGroup:
+            return matchHere(text, textIdx+1, pattern, patternIdx+1)
+        
+    if textIdx != textEnd and text[textIdx] == pattern[patternIdx]:
+        return matchHere(text, textIdx+1, pattern, patternIdx+1)
 
     return False
     
