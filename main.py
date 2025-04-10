@@ -25,6 +25,9 @@ def matchHere(text: str, textIdx: int, pattern: str, patternIdx: str) -> bool:
     if patternIdx == patternEnd:
         return True
     
+    if patternIdx+1 != patternEnd and pattern[patternIdx+1] == "+":
+        return matchPlus(pattern[patternIdx], text, textIdx, pattern, patternIdx+2)
+    
     if pattern[patternIdx] == "\\":
         patternIdx += 1
         if patternIdx == patternEnd:
@@ -68,7 +71,13 @@ def matchHere(text: str, textIdx: int, pattern: str, patternIdx: str) -> bool:
 
     return False
     
-
+def matchPlus(char: str, text: str, textIdx: int, pattern: str, patternIdx: str) -> bool:
+    textEnd = len(text)
+    while textIdx != textEnd and text[textIdx] == char:
+        textIdx += 1
+        if matchHere(text, textIdx, pattern, patternIdx):
+            return True
+    return False
 
 def main():
     if len(sys.argv) < 3:
