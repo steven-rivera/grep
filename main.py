@@ -69,6 +69,34 @@ def matchHere(text: str, textIdx: int, pattern: str, patternIdx: str) -> bool:
         if patternIdx+1 != patternEnd:
             raise RuntimeError("$ must be used as last character in pattern")
         return textIdx == textEnd
+    
+    if pattern[patternIdx] == "(":
+        patternIdx += 1
+        seenClosingBrace = False
+        patterns = []
+        currPattern = ""
+        while patternIdx != patternEnd:
+            if pattern[patternIdx] == ")":
+                if currPattern != "":
+                    patterns.append(currPattern)
+                seenClosingBrace = True
+                break
+            elif pattern[patternIdx] == "|":
+                patterns.append(currPattern)
+                currPattern = ""
+            else:
+                currPattern += pattern[patternIdx]
+            
+            patternIdx += 1
+
+        if not seenClosingBrace:
+            raise RuntimeError("Invalid pattern: No closing brace ')'")
+        
+        for subPattern in patterns:
+            newPattern = f"{subPattern}{pattern[patternIdx+1:]}"
+            if matchHere(text, textIdx, newPattern, 0):
+                return True
+        return False
         
     if textIdx != textEnd and (text[textIdx] == pattern[patternIdx] or pattern[patternIdx] == "."):
         return matchHere(text, textIdx+1, pattern, patternIdx+1)
