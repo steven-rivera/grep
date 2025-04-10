@@ -28,6 +28,10 @@ def matchHere(text: str, textIdx: int, pattern: str, patternIdx: str) -> bool:
     if patternIdx+1 != patternEnd and pattern[patternIdx+1] == "+":
         return matchPlus(pattern[patternIdx], text, textIdx, pattern, patternIdx+2)
     
+    if patternIdx+1 != patternEnd and pattern[patternIdx+1] == "?":
+        return text[textIdx] == pattern[patternIdx] and matchHere(text, textIdx+1, pattern, patternIdx+2) or \
+               matchHere(text, textIdx, pattern, patternIdx+2)
+    
     if pattern[patternIdx] == "\\":
         patternIdx += 1
         if patternIdx == patternEnd:
