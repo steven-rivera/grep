@@ -29,8 +29,8 @@ def matchHere(text: str, textIdx: int, pattern: str, patternIdx: str) -> bool:
         return matchPlus(pattern[patternIdx], text, textIdx, pattern, patternIdx+2)
     
     if patternIdx+1 != patternEnd and pattern[patternIdx+1] == "?":
-        return text[textIdx] == pattern[patternIdx] and matchHere(text, textIdx+1, pattern, patternIdx+2) or \
-               matchHere(text, textIdx, pattern, patternIdx+2)
+        consumeCharMatch = (text[textIdx] == pattern[patternIdx] or pattern[patternIdx] == ".") and matchHere(text, textIdx+1, pattern, patternIdx+2)
+        return consumeCharMatch or matchHere(text, textIdx, pattern, patternIdx+2)
     
     if pattern[patternIdx] == "\\":
         patternIdx += 1
@@ -70,14 +70,14 @@ def matchHere(text: str, textIdx: int, pattern: str, patternIdx: str) -> bool:
             raise RuntimeError("$ must be used as last character in pattern")
         return textIdx == textEnd
         
-    if textIdx != textEnd and text[textIdx] == pattern[patternIdx]:
+    if textIdx != textEnd and (text[textIdx] == pattern[patternIdx] or pattern[patternIdx] == "."):
         return matchHere(text, textIdx+1, pattern, patternIdx+1)
 
     return False
     
 def matchPlus(char: str, text: str, textIdx: int, pattern: str, patternIdx: str) -> bool:
     textEnd = len(text)
-    while textIdx != textEnd and text[textIdx] == char:
+    while textIdx != textEnd and (text[textIdx] == char or char == "."):
         textIdx += 1
         if matchHere(text, textIdx, pattern, patternIdx):
             return True
