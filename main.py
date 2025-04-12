@@ -52,8 +52,8 @@ CapturedGroups = [Captured() for _ in range(10)]
 
 
 def compileRegex(pattern: str) -> list[RE]:
-    currGroupNum = 1
-    
+    currGroupNum = 0
+
     def _compileRegex(pattern: str) -> list[RE]:
         nonlocal currGroupNum
         res = []
@@ -81,8 +81,8 @@ def compileRegex(pattern: str) -> list[RE]:
 
                     if c.isdigit():
                         c = int(c)
-                        if c >= currGroupNum:
-                            raise InvalidPattern("Invalid capture group number '{c}'")
+                        if c > currGroupNum:
+                            raise InvalidPattern(f"Invalid capture group number '{c}'")
                         res.append(RE(type=REType.BACKREFERENCE, groupNum=c))
 
                     else:
@@ -107,36 +107,40 @@ def compileRegex(pattern: str) -> list[RE]:
                     if not seenClosingBracket:
                         raise InvalidPattern("No closing bracket ']'")
 
-                    res.append(RE(type=REType.CHAR_CLASS, chars=charGroup, negated=negated))
+                    res.append(
+                        RE(type=REType.CHAR_CLASS, chars=charGroup, negated=negated)
+                    )
 
                 case "(":
+                    currGroupNum += 1
                     i += 1
+                    openingParen = 1
                     seenClosingBrace = False
                     patterns, currPattern = [], ""
+                    res.append(
+                        RE(type=REType.GROUP, group=patterns, groupNum=currGroupNum)
+                    )
                     while i < len(pattern):
-                        if pattern[i] == ")":
+                        if pattern[i] == ")" and openingParen == 1:
                             if currPattern != "":
-                                patterns.append(
-                                    _compileRegex(currPattern)
-                                )
+                                patterns.append(_compileRegex(currPattern))
                             seenClosingBrace = True
                             break
-                        elif pattern[i] == "|":
-                            patterns.append(
-                                _compileRegex(currPattern)
-                            )
+                        elif pattern[i] == "|" and openingParen == 1:
+                            patterns.append(_compileRegex(currPattern))
                             currPattern = ""
                         else:
+                            if pattern[i] == "(":
+                                openingParen += 1
+                            if pattern[i] == ")":
+                                openingParen -= 1
                             currPattern += pattern[i]
                         i += 1
 
                     if not seenClosingBrace:
                         raise InvalidPattern("No closing brace ')'")
 
-                    res.append(
-                        RE(type=REType.GROUP, group=patterns, groupNum=currGroupNum)
-                    )
-                    currGroupNum += 1
+                    
 
                 case "*":
                     if len(res) == 0:
@@ -163,7 +167,7 @@ def compileRegex(pattern: str) -> list[RE]:
             i += 1
 
         return res
-    
+
     return _compileRegex(pattern)
 
 
@@ -236,6 +240,7 @@ def matchHere(
         if (
             pattern[patternIdx].negated
             and text[textIdx] not in pattern[patternIdx].chars
+            and text[textIdx].isalpha()
         ):
             return matchHere(text, textIdx + 1, pattern, patternIdx + 1)
 
