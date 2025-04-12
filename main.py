@@ -1,4 +1,3 @@
-from curses.ascii import isdigit
 import sys
 from enum import Enum, auto
 from collections import deque
@@ -52,115 +51,120 @@ class Captured:
 CapturedGroups = [Captured() for _ in range(10)]
 
 
-def compileRegex(pattern: str, currCapturingGroup=1) -> list[RE]:
-    res = []
-    capturedGroups = []
-    i = 0
+def compileRegex(pattern: str) -> list[RE]:
+    currGroupNum = 1
+    
+    def _compileRegex(pattern: str) -> list[RE]:
+        nonlocal currGroupNum
+        res = []
+        i = 0
 
-    while i < len(pattern):
-        c = pattern[i]
+        while i < len(pattern):
+            c = pattern[i]
 
-        match c:
-            case "^":
-                if i != 0:
-                    raise InvalidPattern("'^' must be first character in pattern")
+            match c:
+                case "^":
+                    if i != 0:
+                        raise InvalidPattern("'^' must be first character in pattern")
 
-                res.append(RE(type=REType.START, char=c))
-            case "$":
-                if i != len(pattern) - 1:
-                    raise InvalidPattern("'$' must be last character in pattern")
+                    res.append(RE(type=REType.START, char=c))
+                case "$":
+                    if i != len(pattern) - 1:
+                        raise InvalidPattern("'$' must be last character in pattern")
 
-                res.append(RE(type=REType.END, char=c))
-            case "\\":
-                i += 1
-                if i >= len(pattern):
-                    raise InvalidPattern("Expected character class after '\\'")
-                c = pattern[i]
-
-                if c.isdigit():
-                    c = int(c)
-                    if c > len(capturedGroups):
-                        raise InvalidPattern("Invalid capture group number '{c}'")
-                    res.append(RE(type=REType.BACKREFERENCE, groupNum=c))
-
-                else:
-                    if c not in "dw\\":
-                        raise InvalidPattern(f"Invalid character class '\\{c}'")
-                    res.append(RE(type=REType.CLASS, char=c))
-
-            case "[":
-                i += 1
-                negated, seenClosingBracket = False, False
-                charGroup = set()
-                while i < len(pattern):
-                    if pattern[i] == "]":
-                        seenClosingBracket = True
-                        break
-                    if pattern[i] == "^":
-                        negated = True
-                    else:
-                        charGroup.add(pattern[i])
+                    res.append(RE(type=REType.END, char=c))
+                case "\\":
                     i += 1
+                    if i >= len(pattern):
+                        raise InvalidPattern("Expected character class after '\\'")
+                    c = pattern[i]
 
-                if not seenClosingBracket:
-                    raise InvalidPattern("No closing bracket ']'")
+                    if c.isdigit():
+                        c = int(c)
+                        if c >= currGroupNum:
+                            raise InvalidPattern("Invalid capture group number '{c}'")
+                        res.append(RE(type=REType.BACKREFERENCE, groupNum=c))
 
-                res.append(RE(type=REType.CHAR_CLASS, chars=charGroup, negated=negated))
+                    else:
+                        if c not in "dw\\":
+                            raise InvalidPattern(f"Invalid character class '\\{c}'")
+                        res.append(RE(type=REType.CLASS, char=c))
 
-            case "(":
-                i += 1
-                seenClosingBrace = False
-                patterns, currPattern = [], ""
-                while i < len(pattern):
-                    if pattern[i] == ")":
-                        if currPattern != "":
+                case "[":
+                    i += 1
+                    negated, seenClosingBracket = False, False
+                    charGroup = set()
+                    while i < len(pattern):
+                        if pattern[i] == "]":
+                            seenClosingBracket = True
+                            break
+                        if pattern[i] == "^":
+                            negated = True
+                        else:
+                            charGroup.add(pattern[i])
+                        i += 1
+
+                    if not seenClosingBracket:
+                        raise InvalidPattern("No closing bracket ']'")
+
+                    res.append(RE(type=REType.CHAR_CLASS, chars=charGroup, negated=negated))
+
+                case "(":
+                    i += 1
+                    seenClosingBrace = False
+                    patterns, currPattern = [], ""
+                    while i < len(pattern):
+                        if pattern[i] == ")":
+                            if currPattern != "":
+                                patterns.append(
+                                    _compileRegex(currPattern)
+                                )
+                            seenClosingBrace = True
+                            break
+                        elif pattern[i] == "|":
                             patterns.append(
-                                compileRegex(currPattern, currCapturingGroup + 1)
+                                _compileRegex(currPattern)
                             )
-                        seenClosingBrace = True
-                        break
-                    elif pattern[i] == "|":
-                        patterns.append(
-                            compileRegex(currPattern, currCapturingGroup + 1)
+                            currPattern = ""
+                        else:
+                            currPattern += pattern[i]
+                        i += 1
+
+                    if not seenClosingBrace:
+                        raise InvalidPattern("No closing brace ')'")
+
+                    res.append(
+                        RE(type=REType.GROUP, group=patterns, groupNum=currGroupNum)
+                    )
+                    currGroupNum += 1
+
+                case "*":
+                    if len(res) == 0:
+                        raise InvalidPattern(
+                            "No previous pattern to repeat zero or more times"
                         )
-                        currPattern = ""
-                    else:
-                        currPattern += pattern[i]
-                    i += 1
+                    prev = res.pop()
+                    res.append(RE(type=REType.STAR, prev=prev))
+                case "+":
+                    if len(res) == 0:
+                        raise InvalidPattern(
+                            "No previous pattern to repeat one or more times"
+                        )
+                    prev = res.pop()
+                    res.append(RE(type=REType.PLUS, prev=prev))
+                case "?":
+                    if len(res) == 0:
+                        raise InvalidPattern("No previous pattern to make optional")
+                    prev = res.pop()
+                    res.append(RE(type=REType.OPTIONAL, prev=prev))
+                case _:
+                    res.append(RE(type=REType.CHAR, char=c))
 
-                if not seenClosingBrace:
-                    raise InvalidPattern("No closing brace ')'")
+            i += 1
 
-                res.append(
-                    RE(type=REType.GROUP, group=patterns, groupNum=currCapturingGroup)
-                )
-                capturedGroups.append(len(res) - 1)
-
-            case "*":
-                if len(res) == 0:
-                    raise InvalidPattern(
-                        "No previous pattern to repeat zero or more times"
-                    )
-                prev = res.pop()
-                res.append(RE(type=REType.STAR, prev=prev))
-            case "+":
-                if len(res) == 0:
-                    raise InvalidPattern(
-                        "No previous pattern to repeat one or more times"
-                    )
-                prev = res.pop()
-                res.append(RE(type=REType.PLUS, prev=prev))
-            case "?":
-                if len(res) == 0:
-                    raise InvalidPattern("No previous pattern to make optional")
-                prev = res.pop()
-                res.append(RE(type=REType.OPTIONAL, prev=prev))
-            case _:
-                res.append(RE(type=REType.CHAR, char=c))
-
-        i += 1
-
-    return res
+        return res
+    
+    return _compileRegex(pattern)
 
 
 def matchPattern(text: str, pattern: list[RE]) -> bool:
@@ -283,10 +287,9 @@ def matchPlus(
         if not containsPrev:
             break
 
-        matchLengths.append(endIdx-textIdx)
+        matchLengths.append(endIdx - textIdx)
         textIdx = endIdx
 
-    
     while textIdx > prevTextIdx:
         foundMatch, endIdx = matchHere(text, textIdx, pattern, patternIdx)
         if foundMatch:
