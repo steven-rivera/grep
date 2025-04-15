@@ -138,14 +138,14 @@ class RE:
 
         return _compileTokensHelper(self.pattern)
 
-    def matchPattern(self, text: str) -> bool:
+    def matchPattern(self, text: str) -> tuple[Match, bool]:
         textIdx = 0
         while textIdx < len(text):
-            foundMatch, _ = self.matchHere(text, textIdx, self.tokens)
+            foundMatch, endIdx = self.matchHere(text, textIdx, self.tokens)
             if foundMatch:
-                return True
+                return Match(textIdx, endIdx), True 
             textIdx += 1
-        return False
+        return None, False
 
     def matchHere(self, text: str, textIdx: int, tkns: list[tokens.Token]) -> tuple[bool, int]:
         potentialMatchs = [(textIdx, 0)]

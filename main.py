@@ -14,10 +14,12 @@ def main():
         exit(1)
 
     r = regex.RE(pattern)
-    if r.matchPattern(input_line):
+    _, matched = r.matchPattern(input_line)
+    if matched:
         exit(0)
     else:
         exit(1)
+
 
 
 

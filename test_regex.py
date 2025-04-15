@@ -9,9 +9,8 @@ class TestMatchPattern(unittest.TestCase):
                 pattern  = case["pattern"]
                 expected = case["expected"]
                 
-                result = regex.RE(pattern).matchPattern(text)
-                
-                self.assertEqual(result, expected, msg=f"Text: {text}, Pattern: {pattern}",)
+                _, matched = regex.RE(pattern).matchPattern(text)
+                self.assertEqual(matched, expected, msg=f"Text: {text}, Pattern: {pattern}")
 
     def test_match_literal_character(self):
         test_cases = [
