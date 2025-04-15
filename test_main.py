@@ -1,13 +1,11 @@
-import unittest, main
+import unittest, regex
 
 
 class TestMatchPattern(unittest.TestCase):
     def run_match_test(self, test_cases):
         for index, case in enumerate(test_cases):
             with self.subTest(f"Case: {index}"):
-                result = main.matchPattern(
-                    case["text"], main.compileRegex(case["pattern"])
-                )
+                result = regex.RE(case["pattern"]).matchPattern(case["text"])
                 self.assertEqual(
                     result,
                     case["expected"],
