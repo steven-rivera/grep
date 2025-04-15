@@ -289,7 +289,10 @@ class RE:
                 currToken = tokens[currTokenIdx]
 
                 match currToken.type:
-                    case TokenType.PLUS:
+                    case TokenType.PLUS | TokenType.STAR:
+                        if currToken.type == TokenType.STAR:
+                            potentialMatchs.append((currTextIdx, currTokenIdx + 1))
+
                         textEnd = len(text)
                         while currTextIdx != textEnd:
                             matchedPrev, endIdx = self.matchHere(text, currTextIdx, [currToken.prev])

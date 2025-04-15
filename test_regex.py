@@ -5,12 +5,13 @@ class TestMatchPattern(unittest.TestCase):
     def run_match_test(self, test_cases):
         for index, case in enumerate(test_cases):
             with self.subTest(f"Case: {index}"):
-                result = regex.RE(case["pattern"]).matchPattern(case["text"])
-                self.assertEqual(
-                    result,
-                    case["expected"],
-                    msg=f"Text: {case["text"]}, Pattern: {case["pattern"]}",
-                )
+                text     = case["text"]
+                pattern  = case["pattern"]
+                expected = case["expected"]
+                
+                result = regex.RE(pattern).matchPattern(text)
+                
+                self.assertEqual(result, expected, msg=f"Text: {text}, Pattern: {pattern}",)
 
     def test_match_literal_character(self):
         test_cases = [
@@ -57,11 +58,7 @@ class TestMatchPattern(unittest.TestCase):
         test_cases = [
             {"text": "sally has 3 apples", "pattern": r"\d apple", "expected": True},
             {"text": "sally has 1 orange", "pattern": r"\d apple", "expected": False},
-            {
-                "text": "sally has 124 apples",
-                "pattern": r"\d\d\d apples",
-                "expected": True,
-            },
+            {"text": "sally has 124 apples","pattern": r"\d\d\d apples","expected": True,},
             {"text": "sally has 5 apples", "pattern": r"\\d apples", "expected": False},
             {"text": "sally has 3 dogs", "pattern": r"\d \w\w\ws", "expected": True},
             {"text": "sally has 4 dogs", "pattern": r"\d \w\w\ws", "expected": True},
@@ -98,6 +95,17 @@ class TestMatchPattern(unittest.TestCase):
 
     def test_match_zero_or_more_times(self):
         test_cases = [
+            {"text": "ct", "pattern": r"ca*t", "expected": True},
+            {"text": "act", "pattern": r"ca*t", "expected": True},
+            {"text": "caaaat", "pattern": r"ca*t", "expected": True},
+            {"text": "dog", "pattern": r"ca*t", "expected": False},
+            {"text": "cag", "pattern": r"ca*t", "expected": False},
+        ]
+
+        self.run_match_test(test_cases)
+
+    def test_match_zero_or_one_times(self):
+        test_cases = [
             {"text": "cat", "pattern": r"ca?t", "expected": True},
             {"text": "act", "pattern": r"ca?t", "expected": True},
             {"text": "dog", "pattern": r"ca?t", "expected": False},
@@ -119,11 +127,7 @@ class TestMatchPattern(unittest.TestCase):
     def test_match_alternation(self):
         test_cases = [
             {"text": "a cat", "pattern": r"a (cat|dog)", "expected": True},
-            {
-                "text": "a dog and cats",
-                "pattern": r"a (cat|dog) and (cat|dog)s",
-                "expected": True,
-            },
+            {"text": "a dog and cats", "pattern": r"a (cat|dog) and (cat|dog)s", "expected": True},
             {"text": "a cow", "pattern": r"a (cat|dog)", "expected": False},
         ]
 
@@ -131,8 +135,16 @@ class TestMatchPattern(unittest.TestCase):
 
     def test_match_single_backreference(self):
         test_cases = [
-            {"text": "cat and cat", "pattern": r"(cat) and \1", "expected": True},
-            {"text": "cat and dog", "pattern": r"(cat) and \1", "expected": False},
+            {
+                "text": "cat and cat", 
+                "pattern": r"(cat) and \1", 
+                "expected": True,
+            },
+            {
+                "text": "cat and dog", 
+                "pattern": r"(cat) and \1", 
+                "expected": False,
+            },
             {
                 "text": "grep 101 is doing grep 101 times",
                 "pattern": r"(\w\w\w\w \d\d\d) is doing \1 times",
