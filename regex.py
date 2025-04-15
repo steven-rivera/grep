@@ -6,17 +6,14 @@ class InvalidPattern(Exception):
 
 class TokenType(Enum):
     CHAR = auto()  # 'a'
+    ANCHOR_START = auto()  # '^'
+    ANCHOR_END = auto()  # '$'
+    PREDEFINED_CLASS = auto()  # '\d'
+    CHARACTER_CLASS = auto()  # [...]
 
     QUANTIFIER_STAR = auto()  # '*'
     QUANTIFIER_PLUS = auto()  # '+'
     QUANTIFIER_OPTIONAL = auto()  # '?'
-
-    ANCHOR_START = auto()  # '^'
-    ANCHOR_END = auto()  # '$'
-
-    PREDEFINED_CLASS = auto()  # '\d'
-    CHARACTER_CLASS = auto()  # [...]
-
     GROUP = auto()  # (...)
     BACKREFERENCE = auto()  # \1
 
@@ -38,24 +35,6 @@ class TokenChar(Token):
                 return True, textIdx + 1
         return False, -1
 
-
-class TokenStar(Token):
-    def __init__(self, type: TokenType, prev: Token):
-        super().__init__(type)
-        self.prev = prev
-
-
-class TokenPlus(Token):
-    def __init__(self, type: TokenType, prev: Token):
-        super().__init__(type)
-        self.prev = prev
-    
-
-class TokenOptional(Token):
-    def __init__(self, type: TokenType, prev: Token):
-        super().__init__(type)
-        self.prev = prev
-
 class TokenStart(Token):
     def __init__(self, type: TokenType):
         super().__init__(type)
@@ -73,7 +52,7 @@ class TokenEnd(Token):
         if textIdx == len(text):
             return True, len(text)
         return False, -1
-
+    
 class TokenPredifinedClass(Token):
     def __init__(self, type: TokenType, char: str, negated: bool):
         super().__init__(type)
@@ -94,6 +73,7 @@ class TokenPredifinedClass(Token):
                         return True, textIdx + 1
         return False, -1
 
+
 class TokenCharacterClass(Token):
     def __init__(self, type: TokenType, chars: set[str], negated: bool):
         super().__init__(type)
@@ -109,6 +89,24 @@ class TokenCharacterClass(Token):
                 return True, textIdx + 1
 
         return False , -1
+    
+
+class TokenStar(Token):
+    def __init__(self, type: TokenType, prev: Token):
+        super().__init__(type)
+        self.prev = prev
+
+
+class TokenPlus(Token):
+    def __init__(self, type: TokenType, prev: Token):
+        super().__init__(type)
+        self.prev = prev
+    
+
+class TokenOptional(Token):
+    def __init__(self, type: TokenType, prev: Token):
+        super().__init__(type)
+        self.prev = prev
 
 
 class TokenGroup(Token):
@@ -124,6 +122,8 @@ class TokenBackreference(Token):
         self.groupNum = groupNum
 
 
+
+
 class Match:
     def __init__(self, start: int = -1, end: int = -1):
         self.start = start
@@ -134,10 +134,11 @@ class Match:
             return ""
         return text[self.start : self.end]
 
-
 class Captured(Match):
     def __init__(self):
         super().__init__()
+
+
 
 
 class RE:
@@ -145,13 +146,13 @@ class RE:
 
     def __init__(self, pattern: str):
         self.pattern = pattern
-        self.tokens: list[Token] = self.compileTokens()
+        self.tokens: list[Token] = self._compileTokens()
         self.capturedGroups = [Captured() for _ in range(RE.MAX_CAPTURE_GROUPS)]
 
-    def compileTokens(self):
-        self._currGroupNum = 0
+    def _compileTokens(self):
+        self._currGroupNum = 1
 
-        def _compileTokens(subPattern: str) -> list[Token]:
+        def _compileTokensHelper(subPattern: str) -> list[Token]:
             tokens, i = [], 0
             while i < len(subPattern):
                 c = subPattern[i]
@@ -211,7 +212,7 @@ class RE:
 
                         c = subPattern[i]
                         if c.isdigit():
-                            if int(c) > self._currGroupNum:
+                            if int(c) >= self._currGroupNum:
                                 raise InvalidPattern(
                                     f"Invalid capture group number '{c}'"
                                 )
@@ -260,187 +261,113 @@ class RE:
 
                     case "(":
                         i += 1
+                        numOpeningParen, seenClosingParen = 1, False
+                        groupTokens, groupNum, groupPattern = [], self._currGroupNum, ""
                         self._currGroupNum += 1
 
-                        openingParen, seenClosingParen = 1, False
-                        groupTokens, groupPattern = [], ""
-
+                        while i < len(subPattern):
+                            if subPattern[i] == ")" and numOpeningParen == 1:
+                                if groupPattern != "":
+                                    groupTokens.append(_compileTokensHelper(groupPattern))
+                                seenClosingParen = True
+                                break
+                            elif subPattern[i] == "|" and numOpeningParen == 1:
+                                groupTokens.append(_compileTokensHelper(groupPattern))
+                                groupPattern = ""
+                            else:
+                                if subPattern[i] == "(":
+                                    numOpeningParen += 1
+                                if subPattern[i] == ")":
+                                    numOpeningParen -= 1
+                                groupPattern += subPattern[i]
+                            i += 1
+                        if not seenClosingParen:
+                            raise InvalidPattern("No closing brace ')'")
+                        
                         tokens.append(
                             TokenGroup(
                                 type=TokenType.GROUP,
                                 group=groupTokens,
-                                groupNum=self._currGroupNum,
+                                groupNum=groupNum,
                             )
                         )
-
-                        while i < len(subPattern):
-                            if subPattern[i] == ")" and openingParen == 1:
-                                if groupPattern != "":
-                                    groupTokens.append(_compileTokens(groupPattern))
-                                seenClosingParen = True
-                                break
-                            elif subPattern[i] == "|" and openingParen == 1:
-                                groupTokens.append(_compileTokens(groupPattern))
-                                groupPattern = ""
-                            else:
-                                if subPattern[i] == "(":
-                                    openingParen += 1
-                                if subPattern[i] == ")":
-                                    openingParen -= 1
-                                groupPattern += subPattern[i]
-                            i += 1
-
-                        if not seenClosingParen:
-                            raise InvalidPattern("No closing brace ')'")
+                        
                     case _:
                         tokens.append(TokenChar(type=TokenType.CHAR, char=c))
                 i += 1
 
             return tokens
 
-        return _compileTokens(self.pattern)
+        return _compileTokensHelper(self.pattern)
 
     def matchPattern(self, text: str) -> bool:
-        if self.tokens[0].type == TokenType.ANCHOR_START:
-            foundMatch, _ = self._matchHere(
-                text, textIdx=0, tokens=self.tokens, tokenIdx=1
-            )
-            return foundMatch
-
         textIdx = 0
         while True:
-            foundMatch, _ = self._matchHere(
-                text, textIdx=textIdx, tokens=self.tokens, tokenIdx=0
-            )
+            foundMatch, _ = self.matchHere(
+                text, textIdx=textIdx, tokens=self.tokens)
             if foundMatch:
                 return True
-
             # Condition checked after to permit zero-length matches
             if textIdx >= len(text):
                 break
-
             textIdx += 1
-
         return False
 
-    def _matchHere(
-        self, text: str, textIdx: int, tokens: list[Token], tokenIdx: int
-    ) -> tuple[bool, int]:
-        textEnd, tokenEnd = len(text), len(tokens)
+    def matchHere(self, text: str, textIdx: int, tokens: list[Token]) -> tuple[bool, int]:
+        potentialMatch = [(textIdx, 0)]
 
-        # Base case: reached end of pattern
-        if tokenIdx == tokenEnd:
-            return (True, textIdx)
+        while len(potentialMatch) != 0:
+            currTextIdx, currTokenIdx = potentialMatch.pop()
 
-        # if textIdx == textEnd:
-        #     return False
+            while currTokenIdx < len(tokens):
+                currToken = tokens[currTokenIdx]
 
-        currToken = tokens[tokenIdx]
+                if currToken.type == TokenType.QUANTIFIER_PLUS:
+                    textEnd = len(text)
+                    while currTextIdx != textEnd:
+                        containsPrev, endIdx = self.matchHere(text, currTextIdx, [currToken.prev])
+                        if not containsPrev:
+                            break
+                        
+                        potentialMatch.append((endIdx, currTokenIdx+1))
+                        currTextIdx = endIdx
+                    break
 
-        if currToken.type == TokenType.ANCHOR_END:
-            if textIdx == textEnd:
-                return True, textIdx
-            return False, -1
+                if currToken.type == TokenType.GROUP:
+                    for subTokens in currToken.group:
+                        foundMatch, endIdx = self.matchHere(text, currTextIdx, subTokens)
+                        if not foundMatch:
+                            continue
+                        captured = self.capturedGroups[currToken.groupNum - 1]
+                        captured.start, captured.end = currTextIdx, endIdx
+                        
+                        potentialMatch.append((endIdx, currTokenIdx+1))
+                    break
 
-        if currToken.type == TokenType.QUANTIFIER_OPTIONAL:
-            foundMatch, endIdx = self._matchHere(text, textIdx, tokens, tokenIdx + 1)
-            if foundMatch:
-                return foundMatch, endIdx
+                if currToken.type == TokenType.QUANTIFIER_OPTIONAL:
+                    potentialMatch.append((currTextIdx, currTokenIdx+1))
+                    containsPrev, endIdx = self.matchHere(text, currTextIdx, [currToken.prev])
+                    if containsPrev:
+                        potentialMatch.append((endIdx, currTokenIdx+1)) 
+                    break
 
-            foundPrev, endIdx = self._matchHere(text, textIdx, [currToken.prev], 0)
-            if foundPrev:
-                return self._matchHere(text, endIdx, tokens, tokenIdx + 1)
+                if currToken.type == TokenType.BACKREFERENCE:
+                    captured = self.capturedGroups[currToken.groupNum - 1]
+                    subTokens = [TokenChar(type=TokenType.CHAR, char=c) for c in text[captured.start : captured.end]]
 
-            return False, -1
+                    foundMatch, endIdx = self.matchHere(text, currTextIdx, subTokens)
+                    if foundMatch:
+                        potentialMatch.append((endIdx, currTokenIdx+1)) 
+                    break
 
-        if currToken.type == TokenType.QUANTIFIER_PLUS and textIdx != textEnd:
-            return self._matchPlus(currToken.prev, text, textIdx, tokens, tokenIdx + 1)
-
-        if currToken.type == TokenType.PREDEFINED_CLASS and textIdx != textEnd:
-            match currToken.char:
-                case "d":
-                    if text[textIdx].isdigit():
-                        return self._matchHere(text, textIdx + 1, tokens, tokenIdx + 1)
-                case "w":
-                    if text[textIdx].isalpha():
-                        return self._matchHere(text, textIdx + 1, tokens, tokenIdx + 1)
-                case "\\":
-                    if text[textIdx] == "\\":
-                        return self._matchHere(text, textIdx + 1, tokens, tokenIdx + 1)
-
-        if currToken.type == TokenType.CHARACTER_CLASS and textIdx != textEnd:
-            if (
-                currToken.negated
-                and text[textIdx] not in currToken.chars
-                and text[textIdx].isalpha()
-            ):
-                return self._matchHere(text, textIdx + 1, tokens, tokenIdx + 1)
-
-            if not currToken.negated and text[textIdx] in currToken.chars:
-                return self._matchHere(text, textIdx + 1, tokens, tokenIdx + 1)
-
-        if currToken.type == TokenType.GROUP:
-            for subTokens in currToken.group:
-                foundMatch, endIdx = self._matchHere(text, textIdx, subTokens, 0)
+                foundMatch, endIdx = currToken.match(text, currTextIdx)
                 if not foundMatch:
-                    continue
+                    break
+                
+                currTextIdx = endIdx
+                currTokenIdx += 1
 
-                captured = self.capturedGroups[currToken.groupNum - 1]
-                captured.start, captured.end = textIdx, endIdx
-
-                foundMatch, endIdx = self._matchHere(text, endIdx, tokens, tokenIdx + 1)
-                if foundMatch:
-                    return foundMatch, endIdx
-
-            return False, -1
-
-        if currToken.type == TokenType.BACKREFERENCE:
-            captured = self.capturedGroups[currToken.groupNum - 1]
-            subTokens = [
-                TokenChar(type=TokenType.CHAR, char=c)
-                for c in text[captured.start : captured.end]
-            ]
-
-            foundMatch, endIdx = self._matchHere(text, textIdx, subTokens, 0)
-            if not foundMatch:
-                return False, -1
-
-            return self._matchHere(text, endIdx, tokens, tokenIdx + 1)
-
-        if (
-            currToken.type == TokenType.CHAR
-            and textIdx != textEnd
-            and (text[textIdx] == currToken.char or currToken.char == ".")
-        ):
-            return self._matchHere(text, textIdx + 1, tokens, tokenIdx + 1)
+            if currTokenIdx == len(tokens):
+                return True, currTextIdx
 
         return False, -1
-
-    def _matchPlus(
-        self,
-        prevToken: Token,
-        text: str,
-        textIdx: int,
-        tokens: list[Token],
-        tokenIdx: str,
-    ) -> tuple[bool, int]:
-        textEnd = len(text)
-        prevTextIdx = textIdx
-        matchLengths = []
-
-        while textIdx != textEnd:
-            containsPrev, endIdx = self._matchHere(text, textIdx, [prevToken], 0)
-            if not containsPrev:
-                break
-
-            matchLengths.append(endIdx - textIdx)
-            textIdx = endIdx
-
-        while textIdx > prevTextIdx:
-            foundMatch, endIdx = self._matchHere(text, textIdx, tokens, tokenIdx)
-            if foundMatch:
-                return True, endIdx
-            textIdx -= matchLengths.pop()
-
-        return False, -1
-
