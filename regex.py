@@ -5,19 +5,12 @@ class InvalidPattern(Exception):
 
 
 class Match:
-    def __init__(self, start: int = -1, end: int = -1):
+    def __init__(self, start: int, end: int):
         self.start = start
         self.end = end
 
     def string(self, text: str) -> str:
-        if self.start < 0 or self.end < 0:
-            return ""
         return text[self.start : self.end]
-
-
-class Captured(Match):
-    def __init__(self):
-        super().__init__()
 
 
 class RE:
@@ -26,7 +19,7 @@ class RE:
     def __init__(self, pattern: str):
         self.pattern = pattern
         self.tokens: list[tokens.Token] = self._compileTokens()
-        self.capturedGroups = [Captured() for _ in range(RE.MAX_CAPTURE_GROUPS)]
+        self.capturedGroups = [None for _ in range(RE.MAX_CAPTURE_GROUPS)]
 
     def _compileTokens(self):
         self._currGroupNum = 1
@@ -183,9 +176,8 @@ class RE:
                             foundMatch, endIdx = self.matchHere(text, currTextIdx, subTokens)
                             if not foundMatch:
                                 continue
-                            captured = self.capturedGroups[currToken.groupNum - 1]
-                            captured.start, captured.end = currTextIdx, endIdx
 
+                            self.capturedGroups[currToken.groupNum - 1] = text[currTextIdx:endIdx]
                             potentialMatchs.append((endIdx, currTokenIdx + 1))
                         break
 
@@ -197,8 +189,7 @@ class RE:
                         break
 
                     case tokens.TokenType.BACKREFERENCE:
-                        captured = self.capturedGroups[currToken.groupNum - 1]
-                        capturedText = captured.string(text)
+                        capturedText = self.capturedGroups[currToken.groupNum - 1]
 
                         endIdx = currTextIdx + len(capturedText)
                         if endIdx <= len(text):    
