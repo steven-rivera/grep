@@ -9,10 +9,6 @@ class Match:
         self.start = start
         self.end = end
 
-    def string(self, text: str) -> str:
-        return text[self.start : self.end]
-
-
 class RE:
     MAX_CAPTURE_GROUPS = 10
 
@@ -138,16 +134,19 @@ class RE:
 
         return _compileTokensHelper(self.pattern)
 
-    def matchPattern(self, text: str) -> tuple[Match, bool]:
+    def matchPattern(self, text: str) -> tuple[list[Match], bool]:
+        matches = []
         textIdx = 0
         while textIdx < len(text):
-            foundMatch, endIdx = self.matchHere(text, textIdx, self.tokens)
+            foundMatch, endIdx = self._matchHere(text, textIdx, self.tokens)
             if foundMatch:
-                return Match(textIdx, endIdx), True 
-            textIdx += 1
-        return None, False
+                matches.append(Match(textIdx, endIdx))
+                textIdx = endIdx
+            else:
+                textIdx += 1
+        return matches, len(matches) > 0
 
-    def matchHere(self, text: str, textIdx: int, tkns: list[tokens.Token]) -> tuple[bool, int]:
+    def _matchHere(self, text: str, textIdx: int, tkns: list[tokens.Token]) -> tuple[bool, int]:
         potentialMatchs = [(textIdx, 0)]
 
         while len(potentialMatchs) != 0:
@@ -163,7 +162,7 @@ class RE:
 
                         textEnd = len(text)
                         while currTextIdx != textEnd:
-                            matchedPrev, endIdx = self.matchHere(text, currTextIdx, [currToken.prev])
+                            matchedPrev, endIdx = self._matchHere(text, currTextIdx, [currToken.prev])
                             if not matchedPrev:
                                 break
 
@@ -173,7 +172,7 @@ class RE:
                     
                     case tokens.TokenType.GROUP:
                         for subTokens in currToken.groupOptions:
-                            foundMatch, endIdx = self.matchHere(text, currTextIdx, subTokens)
+                            foundMatch, endIdx = self._matchHere(text, currTextIdx, subTokens)
                             if not foundMatch:
                                 continue
 
@@ -183,7 +182,7 @@ class RE:
 
                     case tokens.TokenType.OPTIONAL:
                         potentialMatchs.append((currTextIdx, currTokenIdx + 1))
-                        matchedPrev, endIdx = self.matchHere(text, currTextIdx, [currToken.prev])
+                        matchedPrev, endIdx = self._matchHere(text, currTextIdx, [currToken.prev])
                         if matchedPrev:
                             potentialMatchs.append((endIdx, currTokenIdx + 1))
                         break
