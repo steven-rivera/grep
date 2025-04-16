@@ -13,6 +13,8 @@ class RE:
     MAX_CAPTURE_GROUPS = 10
 
     def __init__(self, pattern: str):
+        if pattern == "":
+            raise InvalidPattern("Empty pattern in invalid")
         self.pattern = pattern
         self.tokens: list[tokens.Token] = self._compileTokens()
         self.capturedGroups = [None for _ in range(RE.MAX_CAPTURE_GROUPS)]

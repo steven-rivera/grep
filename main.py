@@ -19,30 +19,36 @@ def colorMatches(matches: list[regex.Match], text: str) -> str:
                 
 
 def readStdin(args: argparse.Namespace):
-    re = regex.RE(args.PATTERN)
-    
-    while True:
-        try:
-            text = input()
-        except EOFError:
-            break
-        else:
-            matches, ok = re.matchPattern(text)
-            if not ok:
-                print("> No matches")
+    try:
+        re = regex.RE(args.PATTERN)
+    except regex.InvalidPattern as err:
+        print(err)
+    else:
+        while True:
+            try:
+                text = input()
+            except EOFError:
+                break
             else:
-                print(colorMatches(matches, text))
+                matches, ok = re.matchPattern(text)
+                if not ok:
+                    print("> No matches")
+                else:
+                    print(colorMatches(matches, text))
 
 
 def readFile(args: argparse.Namespace):
-    re = regex.RE(args.PATTERN)
-
-    with open(args.file) as f:
-        for lineNum, line in enumerate(f, start=1):
-            line = line.strip()
-            matches, ok = re.matchPattern(line)
-            if ok:
-                print(f"{lineNum}: {colorMatches(matches, line)}")
+    try:
+        re = regex.RE(args.PATTERN)
+    except regex.InvalidPattern as err:
+        print(err)
+    else:
+        with open(args.file) as f:
+            for lineNum, line in enumerate(f, start=1):
+                line = line.strip()
+                matches, ok = re.matchPattern(line)
+                if ok:
+                    print(f"{lineNum}: {colorMatches(matches, line)}")
 
 
 def main():
