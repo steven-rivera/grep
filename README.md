@@ -2,7 +2,9 @@
 
 This is a command-line tool written in Python that mimics the behavior of grep by matching text with regular expressions. It supports a custom subset of regular expression syntaxes and has the ability to search for patterns in files or from standard input.
 
-![example](images/example.png)
+<div align="center">  
+    <img src="images/example.png" width="50%"/>
+</div>
 
 ## Supported Regex
 
@@ -67,7 +69,7 @@ The program supports the following regular expression constructs
 The program can be run from the command-line with the following usage pattern:
 
   
-```bash
+```
 usage: main.py [-h] [-f FILE] PATTERN
 
 positional arguments:
@@ -75,7 +77,8 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  -f FILE, --file FILE  file to search for all occurences of pattern. If no file is provided read from stdin
+  -f FILE, --file FILE  file to search for all occurences of pattern. 
+                        If no file is provided read from stdin
 ```
   
 
