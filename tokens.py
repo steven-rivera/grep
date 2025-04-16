@@ -64,15 +64,22 @@ class TokenPredifinedClass(Token):
 
     def match(self, text: str, textIdx: int) -> tuple[bool, int]:
         if textIdx < len(text):
+            c = text[textIdx]
+            
             match self.char:
                 case "d":
-                    if text[textIdx].isdigit():
+                    if c.isdigit():
                         return True, textIdx + 1
                 case "w":
-                    if text[textIdx].isalpha():
+                    if (
+                        "a" <= c <= "z"    
+                        or "A" <= c <= "Z" 
+                        or "0" <= c <= "9"
+                        or c == "_"
+                    ):
                         return True, textIdx + 1
                 case "\\":
-                    if text[textIdx] == "\\":
+                    if c == "\\":
                         return True, textIdx + 1
         return False, -1
 
