@@ -128,6 +128,43 @@ class RE:
 
                         tkns.append(tokens.TokenGroup(groupOptions, groupNum))
 
+                    case "{":
+                        if len(tkns) == 0: 
+                            raise InvalidPattern("No previous pattern to repeat")
+                        
+                        idx += 1
+                        minimum, maximum = "", ""
+                        seenComma, seenClosingBrace = False, False
+
+                        while idx < len(pattern):
+                            if pattern[idx].isdigit():
+                                if not seenComma:
+                                    minimum += pattern[idx]
+                                else:
+                                    maximum += pattern[idx]
+                            elif pattern[idx] == ",":
+                                seenComma = True
+                            elif pattern[idx] == "}":
+                                seenClosingBrace = True
+                                break
+                            else:
+                                raise InvalidPattern(f"Invalid characater '{pattern[idx]}' in range statement")
+                            idx += 1
+
+                        if not seenClosingBrace:
+                            raise InvalidPattern("No closing brace '}'")
+                        if minimum == "":
+                            raise InvalidPattern("No minimum value given in range statement")
+                        
+                        minimum = int(minimum)
+                        if maximum != "":
+                            maximum = int(maximum)
+                        else:
+                            maximum = float("inf") if seenComma else minimum
+
+                        prevToken = tkns.pop()
+                        tkns.append(tokens.TokenRange(prevToken, int(minimum), maximum))
+                        
                     case _:
                         tkns.append(tokens.TokenChar(char))
                 idx += 1
@@ -170,6 +207,33 @@ class RE:
 
                             potentialMatchs.append((endIdx, currTokenIdx + 1))
                             currTextIdx = endIdx
+                        break
+
+                    case tokens.TokenType.RANGE:
+                        foundMin = True
+                        for _ in range(currToken.min):
+                            matchedPrev, endIdx = self._matchHere(text, currTextIdx, [currToken.prev])
+                            if not matchedPrev:
+                                foundMin = False
+                                break
+                            currTextIdx = endIdx
+
+                        if not foundMin:
+                            break
+
+                        potentialMatchs.append((currTextIdx, currTokenIdx + 1))
+
+                        consumed = currToken.min
+                        while consumed < currToken.max:
+                            matchedPrev, endIdx = self._matchHere(text, currTextIdx, [currToken.prev])
+                            if not matchedPrev:
+                                break
+                            
+                            potentialMatchs.append((endIdx, currTokenIdx + 1))
+                            
+                            currTextIdx = endIdx
+                            consumed += 1
+
                         break
                     
                     case tokens.TokenType.GROUP:

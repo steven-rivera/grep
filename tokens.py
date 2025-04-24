@@ -11,12 +11,13 @@ class TokenType(Enum):
     CHARACTER_CLASS     = auto()  # [abc] or [^abc]
     
     # Complex Tokens consist of other
-    # nase tokens or complex tokens
+    # base tokens or complex tokens
     STAR                = auto()  # *
     PLUS                = auto()  # +
     OPTIONAL            = auto()  # ?
     GROUP               = auto()  # (abc) or (abc|def)
     BACKREFERENCE       = auto()  # \1
+    RANGE               = auto()  # {1,3}
 
 
 class Token:
@@ -136,3 +137,11 @@ class TokenBackreference(Token):
     def __init__(self, groupNum: int):
         super().__init__(TokenType.BACKREFERENCE)
         self.groupNum = groupNum
+
+
+class TokenRange(Token):
+    def __init__(self, prev: Token, min: int, max: int):
+        super().__init__(TokenType.RANGE)
+        self.prev = prev
+        self.min = min
+        self.max = max
