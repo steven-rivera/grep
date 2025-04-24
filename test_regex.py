@@ -394,3 +394,18 @@ class TestMatchPattern(unittest.TestCase):
         ]
 
         self.run_match_test(test_cases)
+
+    def test_match_range(self):
+        test_cases = [
+            {"text": "caat", "pattern": r"ca{2,3}t", "expected": True},
+            {"text": "caaat", "pattern": r"ca{2,3}t", "expected": True},
+            {"text": "car", "pattern": r"ca{2}r", "expected": False},
+            {"text": "123-456-7890", "pattern": r"(\d{3}-){2}\d{4}", "expected": True},
+            {"text": "123-45-7890", "pattern": r"(\d{3}-){2}\d{4}", "expected": False},
+            {"text": "pop goes poppoppop", "pattern": r"(pop) goes \1{3}", "expected": True},
+            {"text": "pop goes poppop", "pattern": r"(pop) goes \1{3}", "expected": False},
+            {"text": "caaaat", "pattern": r"ca{3,}t", "expected": True},
+            {"text": "caat", "pattern": r"ca{3,}t", "expected": False},
+        ]
+
+        self.run_match_test(test_cases)
