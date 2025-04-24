@@ -25,14 +25,14 @@ The program supports the following regular expression constructs
 
 ### End Anchor
 
-- `$`:  Asserts that the preceding pattern must match at the end of the input or line
+- `$`: Asserts that the preceding pattern must match at the end of the input or line
     - Ex: `World$` matches `Hello World` but not `Worldwide`
 
 ### Repetition Operators
 
-- `*` Matches 0 or more occurrences of the previous element
+- `*` Greedily matches 0 or more occurrences of the previous element
     - Ex: `ca*t` matches `ct` or `caaat` but not `cut`
-- `+` Matches 1 or more occurrences of the previous element
+- `+` Greedily matches 1 or more occurrences of the previous element
     - Ex: `do+g` matches `dog` or `dooog` but not `dg`
 - `?` Matches 0 or 1 occurrence of the previous element
     - Ex: `ba?t` matches `bat`or `bt` but not `baat`
@@ -51,7 +51,6 @@ The program supports the following regular expression constructs
 - `[^...]` matches any character except the ones listed
     - Ex: `[^bc]at` matches `rat` but not `cat`
 
-
 ### Grouping and Alternation
 
 - `(...)`: Creates a group that can be referenced later and allows for alternation
@@ -62,13 +61,19 @@ The program supports the following regular expression constructs
 - `\n` refers to the nth grouped sub pattern, allowing you to reuse the matched text later in the pattern
     - Ex: `(\d+) (\w+) squares and \1 \2 circles` matches `3 red squares and 3 red circles` but not `3 red squares and 3 blue circles`
 
-  
+### Range Quantifiers
+
+- `{n}` Matches exactly `n` occurrences of the previous element 
+    - Ex: `ca{3}t` matches `caaat` but not `caat`
+- `{n, m}` Greedily matches between `n` and `m` occurrences of the previous element 
+    - Ex: `(ha){2,3}` matches `haha` or `hahaha` but not `ha`
+- `{n,}` Greedily matches `n` or more occurrences of the previous element 
+    - Ex: `bo{2,}` matches `boooo` but not `bo`
 
 ## Usage
 
 The program can be run from the command-line with the following usage pattern:
 
-  
 ```
 usage: main.py [-h] [-f FILE] PATTERN
 
@@ -81,7 +86,6 @@ options:
                         If no file is provided read from stdin
 ```
   
-
 ### Examples
 
 1. Searching from a file:
@@ -93,5 +97,5 @@ python main.py -f example.txt "^(abc|def)\d+$"
 2. Searching from Standard Input:
 
 ```bash
-cat example.txt | python main.py "\w+"
+cat example.txt | python main.py "(\d{3}-){2}\d{4}"
 ```
