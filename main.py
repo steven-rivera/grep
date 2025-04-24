@@ -18,37 +18,27 @@ def colorMatches(matches: list[regex.Match], text: str) -> str:
     return colorStr
                 
 
-def readStdin(args: argparse.Namespace):
-    try:
-        re = regex.RE(args.PATTERN)
-    except regex.InvalidPattern as err:
-        print(err)
-    else:
-        while True:
-            try:
-                text = input()
-            except EOFError:
-                break
-            else:
-                matches, ok = re.matchPattern(text)
-                if not ok:
-                    print("> No matches")
-                else:
-                    print(colorMatches(matches, text))
+def matchStdin(re: regex.RE):
+    while True:
+        try:
+            text = input()
+        except EOFError:
+            return
+        
+        matches, ok = re.matchPattern(text)
+        if not ok:
+            print("> No matches")
+        else:
+            print(colorMatches(matches, text))
 
 
-def readFile(args: argparse.Namespace):
-    try:
-        re = regex.RE(args.PATTERN)
-    except regex.InvalidPattern as err:
-        print(err)
-    else:
-        with open(args.file) as f:
-            for lineNum, line in enumerate(f, start=1):
-                line = line.strip()
-                matches, ok = re.matchPattern(line)
-                if ok:
-                    print(f"{lineNum}: {colorMatches(matches, line)}")
+def matchFile(re: regex.RE, fileName: str):
+    with open(fileName) as f:
+        for lineNum, line in enumerate(f, start=1):
+            line = line.strip()
+            matches, ok = re.matchPattern(line)
+            if ok:
+                print(f"{lineNum}: {colorMatches(matches, line)}")
 
 
 def main():
@@ -57,11 +47,16 @@ def main():
     parser.add_argument("-f", "--file", help="file to search for all occurences of pattern. If no file is provided read from stdin")
 
     args = parser.parse_args()
-    
-    if args.file != None:
-        readFile(args)
+
+    try:
+        re = regex.RE(args.PATTERN)
+    except regex.InvalidPattern as err:
+        print(err)
     else:
-        readStdin(args)
+        if args.file != None:
+            matchFile(re, args.file)
+        else:
+            matchStdin(re)
 
 if __name__ == "__main__":
     main()
