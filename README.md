@@ -1,6 +1,6 @@
 # Regex Search Utility
 
-This is a command-line tool written in Python that mimics the behavior of grep by matching text with regular expressions. It supports a custom subset of regular expression syntaxes and has the ability to search for patterns in files or from standard input.
+This is a command-line tool written in Python that mimics the behavior of grep by matching text with regular expressions. It implements its own custom regex engine that supports a subset of perl-style regular expressions and has the ability to search for patterns in files or from standard input.
 
 <div align="center">  
     <img src="images/example.png" width="50%"/>
@@ -70,9 +70,13 @@ The program supports the following regular expression constructs
 - `{n,}` Greedily matches `n` or more occurrences of the previous element 
     - Ex: `bo{2,}` matches `boooo` but not `bo`
 
+
+## Requirements
+
+- Python `v3.12+`
 ## Usage
 
-The program can be run from the command-line with the following usage pattern:
+The program can be run from the command-line and has the following usage pattern:
 
 ```
 usage: main.py [-h] [-f FILE] PATTERN
@@ -88,14 +92,14 @@ options:
   
 ### Examples
 
-1. Searching from a file:
+1. Searching a file for given pattern:
 
 ```bash
-python main.py -f example.txt "^(abc|def)\d+$"
+python3 main.py -f example.txt "^(abc|def)\d+$"
 ```
 
 2. Searching from Standard Input:
 
 ```bash
-cat example.txt | python main.py "(\d{3}-){2}\d{4}"
+cat example.txt | python3 main.py "(\d{3}-){2}\d{4}"
 ```
