@@ -5,10 +5,10 @@ from collections import deque
 
 @dataclass
 class MatchState:
-    pos: int  # Current position in the string
-    captures: dict[
-        int, tuple[int, int]
-    ]  # Keys are group ID's and values are the start and end index of captured group
+    # Current position in the string
+    pos: int
+    # Keys are group ID's and values are the start and end index of captured group
+    captures: dict[int, tuple[int, int]]
 
 
 class Node(ABC):
@@ -94,9 +94,9 @@ class CharacterClass(Node):
 
         if c in self.chars:
             if not self.complement:
-                return [MatchState(pos=state.pos + 1, captures=state.captures.copy())]
+                return [MatchState(pos=state.pos + 1, captures=state.captures.copy(),)]
         elif self.complement and c.isalpha():
-            return [MatchState(pos=state.pos + 1, captures=state.captures.copy())]
+            return [MatchState(pos=state.pos + 1, captures=state.captures.copy(),)]
 
         return []
 
@@ -426,7 +426,6 @@ class Pattern:
         return matches
 
 
-
 class InvalidPattern(Exception):
     pass
 
@@ -681,7 +680,6 @@ class Parser:
         self._consume("]")
 
         return CharacterClass(chars=set(chars), complement=complement)
-
 
 
 def compile(pattern: str) -> Pattern:
