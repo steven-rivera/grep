@@ -1,411 +1,605 @@
-import unittest, regex
+import unittest
+import regex
 
 
-class TestMatchPattern(unittest.TestCase):
-    def run_match_test(self, test_cases):
-        for index, case in enumerate(test_cases):
-            with self.subTest(f"Case: {index}"):
-                text     = case["text"]
-                pattern  = case["pattern"]
-                expected = case["expected"]
-                
-                _, matched = regex.RE(pattern).matchPattern(text)
-                self.assertEqual(matched, expected, msg=f"Text: {text}, Pattern: {pattern}")
+def run_tests(testcase: unittest.TestCase, test_cases):
 
-    def test_match_literal_character(self):
-        test_cases = [
-            {"text": "dog", "pattern": r"o", "expected": True},
-            {"text": "dog", "pattern": r"f", "expected": False},
+    for case in test_cases:
+        re = case["regex"]
+        string = case["string"]
+        expected = case["expected"]
+
+        res = regex.compile(re).search(string)
+
+        if res is None:
+            testcase.assertIsNone(
+                expected,
+                msg=f"Regex '{re}' on '{string}' expected None but got {res}",
+            )
+
+            continue
+
+        testcase.assertIsNotNone(
+            expected,
+            msg=f"Regex '{re}' on '{string}' expected None but got {res}",
+        )
+
+        testcase.assertEqual(
+            res.match,
+            expected["match"],
+            msg=f"Regex '{re}' on '{string}' returned wrong match",
+        )
+
+        testcase.assertEqual(
+            res.span,
+            expected["span"],
+            msg=f"Regex '{re}' on '{string}' returned wrong span",
+        )
+
+        testcase.assertEqual(
+            res.captures,
+            expected["captures"],
+            msg=f"Regex '{re}' on '{string}' returned wrong captures",
+        )
+
+
+class TestLiterals(unittest.TestCase):
+    def test_literals(self):
+        cases = [
+            {
+                "regex": r"a",
+                "string": "a",
+                "expected": {"match": "a", "span": (0, 1), "captures": {}},
+            },
+            {
+                "regex": r"a",
+                "string": "ba",
+                "expected": {"match": "a", "span": (1, 2), "captures": {}},
+            },
+            {
+                "regex": r"dog",
+                "string": "dog",
+                "expected": {"match": "dog", "span": (0, 3), "captures": {}},
+            },
+            {
+                "regex": r"dog",
+                "string": "hotdog",
+                "expected": {"match": "dog", "span": (3, 6), "captures": {}},
+            },
+            {
+                "regex": r"abc",
+                "string": "zzzabczzz",
+                "expected": {"match": "abc", "span": (3, 6), "captures": {}},
+            },
+            {"regex": r"x", "string": "abc", "expected": None},
         ]
 
-        self.run_match_test(test_cases)
+        run_tests(self, cases)
 
-    def test_match_digits(self):
-        test_cases = [
-            {"text": "123", "pattern": r"\d", "expected": True},
-            {"text": "apple", "pattern": r"\d", "expected": False},
-        ]
 
-        self.run_match_test(test_cases)
-
-    def test_match_alphanumeric_characters(self):
-        test_cases = [
-            {"text": "word", "pattern": r"\w", "expected": True},
-            {"text": "$!?", "pattern": r"\w", "expected": False},
-        ]
-
-        self.run_match_test(test_cases)
-
-    def test_match_positive_character_groups(self):
-        test_cases = [
-            {"text": "a", "pattern": r"[abcd]", "expected": True},
-            {"text": "efgh", "pattern": r"[abcd]", "expected": False},
-        ]
-
-        self.run_match_test(test_cases)
-
-    def test_match_negative_character_groups(self):
-        test_cases = [
-            {"text": "apple", "pattern": r"[^xyz]", "expected": True},
-            {"text": "banana", "pattern": r"[^anb]", "expected": False},
-            {"text": "orange", "pattern": r"[^opq]", "expected": True},
-        ]
-
-        self.run_match_test(test_cases)
-
-    def test_match_combining_character_classes(self):
-        test_cases = [
-            {"text": "sally has 3 apples", "pattern": r"\d apple", "expected": True},
-            {"text": "sally has 1 orange", "pattern": r"\d apple", "expected": False},
-            {"text": "sally has 124 apples","pattern": r"\d\d\d apples","expected": True,},
-            {"text": "sally has 5 apples", "pattern": r"\\d apples", "expected": False},
-            {"text": "sally has 3 dogs", "pattern": r"\d \w\w\ws", "expected": True},
-            {"text": "sally has 4 dogs", "pattern": r"\d \w\w\ws", "expected": True},
-            {"text": "sally has 1 dog", "pattern": r"\d \w\w\ws", "expected": False},
-        ]
-
-        self.run_match_test(test_cases)
-
-    def test_match_start_of_string(self):
-        test_cases = [
-            {"text": "log", "pattern": r"^log", "expected": True},
-            {"text": "slog", "pattern": r"^log", "expected": False},
-        ]
-
-        self.run_match_test(test_cases)
-
-    def test_match_end_of_string(self):
-        test_cases = [
-            {"text": "cat", "pattern": r"cat$", "expected": True},
-            {"text": "cats", "pattern": r"cat$", "expected": False},
-        ]
-
-        self.run_match_test(test_cases)
-
-    def test_match_one_or_more_times(self):
-        test_cases = [
-            {"text": "cat", "pattern": r"ca+t", "expected": True},
-            {"text": "caaats", "pattern": r"ca+at", "expected": True},
-            {"text": "act", "pattern": r"ca+t", "expected": False},
-            {"text": "ca", "pattern": r"ca+t", "expected": False},
-        ]
-
-        self.run_match_test(test_cases)
-
-    def test_match_zero_or_more_times(self):
-        test_cases = [
-            {"text": "ct", "pattern": r"ca*t", "expected": True},
-            {"text": "act", "pattern": r"ca*t", "expected": True},
-            {"text": "caaaat", "pattern": r"ca*t", "expected": True},
-            {"text": "dog", "pattern": r"ca*t", "expected": False},
-            {"text": "cag", "pattern": r"ca*t", "expected": False},
-        ]
-
-        self.run_match_test(test_cases)
-
-    def test_match_zero_or_one_times(self):
-        test_cases = [
-            {"text": "cat", "pattern": r"ca?t", "expected": True},
-            {"text": "act", "pattern": r"ca?t", "expected": True},
-            {"text": "dog", "pattern": r"ca?t", "expected": False},
-            {"text": "cag", "pattern": r"ca?t", "expected": False},
-        ]
-
-        self.run_match_test(test_cases)
-
-    def test_match_wildcard(self):
-        test_cases = [
-            {"text": "cat", "pattern": r"c.t", "expected": True},
-            {"text": "car", "pattern": r"c.t", "expected": False},
-            {"text": "goøö0Ogol", "pattern": r"g.+gol", "expected": True},
-            {"text": "gol", "pattern": r"g.+gol", "expected": False},
-        ]
-
-        self.run_match_test(test_cases)
-
-    def test_match_alternation(self):
-        test_cases = [
-            {"text": "a cat", "pattern": r"a (cat|dog)", "expected": True},
-            {"text": "a dog and cats", "pattern": r"a (cat|dog) and (cat|dog)s", "expected": True},
-            {"text": "a cow", "pattern": r"a (cat|dog)", "expected": False},
-        ]
-
-        self.run_match_test(test_cases)
-
-    def test_match_single_backreference(self):
-        test_cases = [
+class TestDot(unittest.TestCase):
+    def test_dot(self):
+        cases = [
             {
-                "text": "cat and cat", 
-                "pattern": r"(cat) and \1", 
-                "expected": True,
+                "regex": r".",
+                "string": "xyz",
+                "expected": {"match": "x", "span": (0, 1), "captures": {}},
             },
             {
-                "text": "cat and dog", 
-                "pattern": r"(cat) and \1", 
-                "expected": False,
+                "regex": r".a",
+                "string": "ba",
+                "expected": {"match": "ba", "span": (0, 2), "captures": {}},
             },
             {
-                "text": "grep 101 is doing grep 101 times",
-                "pattern": r"(\w\w\w\w \d\d\d) is doing \1 times",
-                "expected": True,
+                "regex": r".b",
+                "string": "ab",
+                "expected": {"match": "ab", "span": (0, 2), "captures": {}},
             },
             {
-                "text": "$?! 101 is doing $?! 101 times",
-                "pattern": r"(\w\w\w \d\d\d) is doing \1 times",
-                "expected": False,
-            },
-            {
-                "text": "grep yes is doing grep yes times",
-                "pattern": r"(\w\w\w\w \d\d\d) is doing \1 times",
-                "expected": False,
-            },
-            {
-                "text": "abcd is abcd, not efg",
-                "pattern": r"([abcd]+) is \1, not [^xyz]+",
-                "expected": True,
-            },
-            {
-                "text": "efgh is efgh, not efg",
-                "pattern": r"([abcd]+) is \1, not [^xyz]+",
-                "expected": False,
-            },
-            {
-                "text": "abcd is abcd, not xyz",
-                "pattern": r"([abcd]+) is \1, not [^xyz]+",
-                "expected": False,
-            },
-            {
-                "text": "this starts and ends with this",
-                "pattern": r"^(\w+) starts and ends with \1$",
-                "expected": True,
-            },
-            {
-                "text": "that starts and ends with this",
-                "pattern": r"^(this) starts and ends with \1$",
-                "expected": False,
-            },
-            {
-                "text": "this starts and ends with this?",
-                "pattern": r"^(this) starts and ends with \1$",
-                "expected": False,
-            },
-            {
-                "text": "once a dreaaamer, always a dreaaamer",
-                "pattern": r"once a (drea+mer), alwaysz? a \1",
-                "expected": True,
-            },
-            {
-                "text": "once a dreaaamer, always a dreamer",
-                "pattern": r"once a (drea+mer), alwaysz? a \1",
-                "expected": False,
-            },
-            {
-                "text": "once a dremer, always a dreaaamer",
-                "pattern": r"once a (drea+mer), alwaysz? a \1",
-                "expected": False,
-            },
-            {
-                "text": "once a dreaaamer, alwayszzz a dreaaamer",
-                "pattern": r"once a (drea+mer), alwaysz? a \1",
-                "expected": False,
-            },
-            {
-                "text": "bugs here and bugs there",
-                "pattern": r"(b..s|c..e) here and \1 there",
-                "expected": True,
-            },
-            {
-                "text": "bugz here and bugs there",
-                "pattern": r"(b..s|c..e) here and \1 there",
-                "expected": False,
+                "regex": r"..",
+                "string": "abc",
+                "expected": {"match": "ab", "span": (0, 2), "captures": {}},
             },
         ]
 
-        self.run_match_test(test_cases)
+        run_tests(self, cases)
 
-    def test_match_multiple_backreference(self):
-        test_cases = [
+
+class TestCharacterClass(unittest.TestCase):
+    def test_charclass(self):
+        cases = [
             {
-                "text": "3 red squares and 3 red circles",
-                "pattern": r"(\d+) (\w+) squares and \1 \2 circles",
-                "expected": True,
+                "regex": r"[abc]",
+                "string": "a",
+                "expected": {"match": "a", "span": (0, 1), "captures": {}},
             },
             {
-                "text": "3 red squares and 4 red circles",
-                "pattern": r"(\d+) (\w+) squares and \1 \2 circles",
-                "expected": False,
+                "regex": r"[abc]",
+                "string": "zzzab",
+                "expected": {"match": "a", "span": (3, 4), "captures": {}},
             },
             {
-                "text": "grep 101 is doing grep 101 times",
-                "pattern": r"(\w\w\w\w) (\d\d\d) is doing \1 \2 times",
-                "expected": True,
+                "regex": r"[xyz]",
+                "string": "abcxyz",
+                "expected": {"match": "x", "span": (3, 4), "captures": {}},
             },
             {
-                "text": "$?! 101 is doing $?! 101 times",
-                "pattern": r"(\w\w\w) (\d\d\d) is doing \1 \2 times",
-                "expected": False,
+                "regex": r"[^a]",
+                "string": "ba",
+                "expected": {"match": "b", "span": (0, 1), "captures": {}},
             },
             {
-                "text": "grep yes is doing grep yes times",
-                "pattern": r"(\w\w\w\w) (\d\d\d) is doing \1 \2 times",
-                "expected": False,
-            },
-            {
-                "text": "abc-def is abc-def, not efg",
-                "pattern": r"([abc]+)-([def]+) is \1-\2, not [^xyz]+",
-                "expected": True,
-            },
-            {
-                "text": "efg-hij is efg-hij, not efg",
-                "pattern": r"([abc]+)-([def]+) is \1-\2, not [^xyz]+",
-                "expected": False,
-            },
-            {
-                "text": "abc-def is abc-def, not xyz",
-                "pattern": r"([abc]+)-([def]+) is \1-\2, not [^xyz]+",
-                "expected": False,
-            },
-            {
-                "text": "apple pie, apple and pie",
-                "pattern": r"^(\w+) (\w+), \1 and \2$",
-                "expected": True,
-            },
-            {
-                "text": "pineapple pie, pineapple and pie",
-                "pattern": r"^(apple) (\w+), \1 and \2$",
-                "expected": False,
-            },
-            {
-                "text": "apple pie, apple and pies",
-                "pattern": r"^(\w+) (pie), \1 and \2$",
-                "expected": False,
-            },
-            {
-                "text": "howwdy hey there, howwdy hey",
-                "pattern": r"(how+dy) (he?y) there, \1 \2",
-                "expected": True,
-            },
-            {
-                "text": "hody hey there, howwdy hey",
-                "pattern": r"(how+dy) (he?y) there, \1 \2",
-                "expected": False,
-            },
-            {
-                "text": "howwdy heeey there, howwdy heeey",
-                "pattern": r"(how+dy) (he?y) there, \1 \2",
-                "expected": False,
-            },
-            {
-                "text": "cat and fish, cat with fish",
-                "pattern": r"(c.t|d.g) and (f..h|b..d), \1 with \2",
-                "expected": True,
-            },
-            {
-                "text": "bat and fish, cat with fish",
-                "pattern": r"(c.t|d.g) and (f..h|b..d), \1 with \2",
-                "expected": False,
+                "regex": r"[abc]+",
+                "string": "zzabcc",
+                "expected": {"match": "abcc", "span": (2, 6), "captures": {}},
             },
         ]
 
-        self.run_match_test(test_cases)
+        run_tests(self, cases)
 
-    def test_match_nested_backreference(self):
-        test_cases = [
+
+class TestAlternation(unittest.TestCase):
+    def test_alternation(self):
+        cases = [
             {
-                "text": "'cat and cat' is the same as 'cat and cat'",
-                "pattern": r"('(cat) and \2') is the same as \1",
-                "expected": True,
+                "regex": r"cat|dog",
+                "string": "dog",
+                "expected": {"match": "dog", "span": (0, 3), "captures": {}},
             },
             {
-                "text": "'cat and cat' is the same as 'cat and dog'",
-                "pattern": r"('(cat) and \2') is the same as \1",
-                "expected": False,
+                "regex": r"cat|dog",
+                "string": "hotdog",
+                "expected": {"match": "dog", "span": (3, 6), "captures": {}},
             },
             {
-                "text": "grep 101 is doing grep 101 times, and again grep 101 times",
-                "pattern": r"((\w\w\w\w) (\d\d\d)) is doing \2 \3 times, and again \1 times",
-                "expected": True,
+                "regex": r"dog|cat",
+                "string": "cat",
+                "expected": {"match": "cat", "span": (0, 3), "captures": {}},
             },
             {
-                "text": "$?! 101 is doing $?! 101 times, and again $?! 101 times",
-                "pattern": r"((\w\w\w) (\d\d\d)) is doing \2 \3 times, and again \1 times",
-                "expected": False,
-            },
-            {
-                "text": "grep yes is doing grep yes times, and again grep yes times",
-                "pattern": r"((\w\w\w\w) (\d\d\d)) is doing \2 \3 times, and again \1 times",
-                "expected": False,
-            },
-            {
-                "text": "abc-def is abc-def, not efg, abc, or def",
-                "pattern": r"(([abc]+)-([def]+)) is \1, not ([^xyz]+), \2, or \3",
-                "expected": True,
-            },
-            {
-                "text": "efg-hij is efg-hij, not klm, efg, or hij",
-                "pattern": r"(([abc]+)-([def]+)) is \1, not ([^xyz]+), \2, or \3",
-                "expected": False,
-            },
-            {
-                "text": "abc-def is abc-def, not xyz, abc, or def",
-                "pattern": r"(([abc]+)-([def]+)) is \1, not ([^xyz]+), \2, or \3",
-                "expected": False,
-            },
-            {
-                "text": "apple pie is made of apple and pie. love apple pie",
-                "pattern": r"^((\w+) (\w+)) is made of \2 and \3. love \1$",
-                "expected": True,
-            },
-            {
-                "text": "pineapple pie is made of apple and pie. love apple pie",
-                "pattern": r"^((apple) (\w+)) is made of \2 and \3. love \1$",
-                "expected": False,
-            },
-            {
-                "text": "apple pie is made of apple and pie. love apple pies",
-                "pattern": r"^((\w+) (pie)) is made of \2 and \3. love \1$",
-                "expected": False,
-            },
-            {
-                "text": "'howwdy hey there' is made up of 'howwdy' and 'hey'. howwdy hey there",
-                "pattern": r"'((how+dy) (he?y) there)' is made up of '\2' and '\3'. \1",
-                "expected": True,
-            },
-            {
-                "text": "'hody hey there' is made up of 'hody' and 'hey'. hody hey there",
-                "pattern": r"'((how+dy) (he?y) there)' is made up of '\2' and '\3'. \1",
-                "expected": False,
-            },
-            {
-                "text": "howwdy heeey there' is made up of 'howwdy' and 'heeey'. howwdy heeey there",
-                "pattern": r"'((how+dy) (he?y) there)' is made up of '\2' and '\3'. \1",
-                "expected": False,
-            },
-            {
-                "text": "cat and fish, cat with fish, cat and fish",
-                "pattern": r"((c.t|d.g) and (f..h|b..d)), \2 with \3, \1",
-                "expected": True,
-            },
-            {
-                "text": "bat and fish, bat with fish, bat and fish",
-                "pattern": r"((c.t|d.g) and (f..h|b..d)), \2 with \3, \1",
-                "expected": False,
+                "regex": r"a|b",
+                "string": "bbb",
+                "expected": {"match": "b", "span": (0, 1), "captures": {}},
             },
         ]
 
-        self.run_match_test(test_cases)
+        run_tests(self, cases)
 
-    def test_match_range(self):
-        test_cases = [
-            {"text": "caat", "pattern": r"ca{2,3}t", "expected": True},
-            {"text": "caaat", "pattern": r"ca{2,3}t", "expected": True},
-            {"text": "car", "pattern": r"ca{2}r", "expected": False},
-            {"text": "123-456-7890", "pattern": r"(\d{3}-){2}\d{4}", "expected": True},
-            {"text": "123-45-7890", "pattern": r"(\d{3}-){2}\d{4}", "expected": False},
-            {"text": "pop goes poppoppop", "pattern": r"(pop) goes \1{3}", "expected": True},
-            {"text": "pop goes poppop", "pattern": r"(pop) goes \1{3}", "expected": False},
-            {"text": "caaaat", "pattern": r"ca{3,}t", "expected": True},
-            {"text": "caat", "pattern": r"ca{3,}t", "expected": False},
+
+class TestQuantifiers(unittest.TestCase):
+    def test_star(self):
+        cases = [
+            {
+                "regex": r"a*",
+                "string": "aaa",
+                "expected": {"match": "aaa", "span": (0, 3), "captures": {}},
+            },
+            {
+                "regex": r"a*",
+                "string": "baaa",
+                "expected": {"match": "", "span": (0, 0), "captures": {}},
+            },
+            {
+                "regex": r"ba*",
+                "string": "baaa",
+                "expected": {"match": "baaa", "span": (0, 4), "captures": {}},
+            },
+            {
+                "regex": r"ab*c",
+                "string": "ac",
+                "expected": {"match": "ac", "span": (0, 2), "captures": {}},
+            },
+            {
+                "regex": r"ab*c",
+                "string": "abbbc",
+                "expected": {"match": "abbbc", "span": (0, 5), "captures": {}},
+            },
         ]
 
-        self.run_match_test(test_cases)
+        run_tests(self, cases)
+
+    def test_plus(self):
+        cases = [
+            {
+                "regex": r"a+",
+                "string": "aaa",
+                "expected": {"match": "aaa", "span": (0, 3), "captures": {}},
+            },
+            {
+                "regex": r"a+",
+                "string": "baaa",
+                "expected": {"match": "aaa", "span": (1, 4), "captures": {}},
+            },
+            {
+                "regex": r"ab+c",
+                "string": "abbc",
+                "expected": {"match": "abbc", "span": (0, 4), "captures": {}},
+            },
+            {"regex": r"ab+c", "string": "ac", "expected": None},
+        ]
+
+        run_tests(self, cases)
+
+    def test_optional(self):
+        cases = [
+            {
+                "regex": r"ab?",
+                "string": "ab",
+                "expected": {"match": "ab", "span": (0, 2), "captures": {}},
+            },
+            {
+                "regex": r"ab?",
+                "string": "a",
+                "expected": {"match": "a", "span": (0, 1), "captures": {}},
+            },
+            {
+                "regex": r"colou?r",
+                "string": "color",
+                "expected": {"match": "color", "span": (0, 5), "captures": {}},
+            },
+            {
+                "regex": r"colou?r",
+                "string": "colour",
+                "expected": {"match": "colour", "span": (0, 6), "captures": {}},
+            },
+        ]
+
+        run_tests(self, cases)
+
+
+class TestRange(unittest.TestCase):
+    def test_range(self):
+        cases = [
+            {
+                "regex": r"a{2}",
+                "string": "aaa",
+                "expected": {"match": "aa", "span": (0, 2), "captures": {}},
+            },
+            {
+                "regex": r"a{2,4}",
+                "string": "aaaaa",
+                "expected": {"match": "aaaa", "span": (0, 4), "captures": {}},
+            },
+            {
+                "regex": r"a{1,3}",
+                "string": "aaaa",
+                "expected": {"match": "aaa", "span": (0, 3), "captures": {}},
+            },
+            {
+                "regex": r"ca{3,}t",
+                "string": "caaaat",
+                "expected": {"match": "caaaat", "span": (0, 6), "captures": {}},
+            },
+            {
+                "regex": r"ca{3,}t",
+                "string": "caat",
+                "expected": None,
+            },
+            {
+                "regex": r"(\d{3}-){2}\d{4}",
+                "string": "123-456-7890",
+                "expected": {
+                    "match": "123-456-7890",
+                    "span": (0, 12),
+                    "captures": {1: (4, 8)},
+                },
+            },
+            {"regex": r"(\d{3}-){2}\d{4}", "string": "123-45-7890", "expected": None},
+        ]
+
+        run_tests(self, cases)
+
+
+class TestGroups(unittest.TestCase):
+    def test_groups(self):
+        cases = [
+            {
+                "regex": r"(abc)",
+                "string": "abc",
+                "expected": {"match": "abc", "span": (0, 3), "captures": {1: (0, 3)}},
+            },
+            {
+                "regex": r"(ab)c",
+                "string": "abc",
+                "expected": {"match": "abc", "span": (0, 3), "captures": {1: (0, 2)}},
+            },
+            {
+                "regex": r"a(bc)",
+                "string": "abc",
+                "expected": {"match": "abc", "span": (0, 3), "captures": {1: (1, 3)}},
+            },
+            {
+                "regex": r"(ab)*",
+                "string": "abab",
+                "expected": {"match": "abab", "span": (0, 4), "captures": {1: (2, 4)}},
+            },
+        ]
+
+        run_tests(self, cases)
+
+    def test_nested_groups(self):
+        cases = [
+            {
+                "regex": r"(a(bc))",
+                "string": "abc",
+                "expected": {
+                    "match": "abc",
+                    "span": (0, 3),
+                    "captures": {1: (0, 3), 2: (1, 3)},
+                },
+            },
+            {
+                "regex": r"((ab)c)",
+                "string": "abc",
+                "expected": {
+                    "match": "abc",
+                    "span": (0, 3),
+                    "captures": {1: (0, 3), 2: (0, 2)},
+                },
+            },
+        ]
+
+        run_tests(self, cases)
+
+
+class TestBackreferences(unittest.TestCase):
+    def test_backrefs(self):
+        cases = [
+            {
+                "regex": r"(a)\1",
+                "string": "aa",
+                "expected": {"match": "aa", "span": (0, 2), "captures": {1: (0, 1)}},
+            },
+            {
+                "regex": r"(ab)\1",
+                "string": "abab",
+                "expected": {"match": "abab", "span": (0, 4), "captures": {1: (0, 2)}},
+            },
+            {
+                "regex": r"(pop) goes \1{3}",
+                "string": "pop goes poppoppop",
+                "expected": {
+                    "match": "pop goes poppoppop",
+                    "span": (0, 18),
+                    "captures": {1: (0, 3)},
+                },
+            },
+            {
+                "regex": r"(pop) goes \1{3}",
+                "string": "pop goes poppop",
+                "expected": None,
+            },
+        ]
+
+        run_tests(self, cases)
+
+    def test_multiple_backrefs(self):
+        cases = [
+            {
+                "regex": r"(\d+) (\w+) squares and \1 \2 circles",
+                "string": "3 red squares and 3 red circles",
+                "expected": {
+                    "match": "3 red squares and 3 red circles",
+                    "span": (0, 31),
+                    "captures": {1: (0, 1), 2: (2, 5)},
+                },
+            },
+            {
+                "regex": r"(c.t|d.g) and (f..h|b..d), \1 with \2",
+                "string": "cat and fish, cat with fish",
+                "expected": {
+                    "match": "cat and fish, cat with fish",
+                    "span": (0, 27),
+                    "captures": {1: (0, 3), 2: (8, 12)},
+                },
+            },
+            {
+                "regex": r"(c.t|d.g) and (f..h|b..d), \1 with \2",
+                "string": "bat and fish, cat with fish",
+                "expected": None,
+            },
+        ]
+
+        run_tests(self, cases)
+
+    def test_nested_backrefs(self):
+        cases = [
+            {
+                "regex": r"('(cat) and \2') is the same as \1",
+                "string": "'cat and cat' is the same as 'cat and cat'",
+                "expected": {
+                    "match": "'cat and cat' is the same as 'cat and cat'",
+                    "span": (0, 42),
+                    "captures": {1: (0, 13), 2: (1, 4)},
+                },
+            },
+            {
+                "regex": r"('(cat) and \2') is the same as \1",
+                "string": "'cat and cat' is the same as 'cat and dog'",
+                "expected": None,
+            },
+            {
+                "regex": r"((c.t|d.g) and (f..h|b..d)), \2 with \3, \1",
+                "string": "cat and fish, cat with fish, cat and fish",
+                "expected": {
+                    "match": "cat and fish, cat with fish, cat and fish",
+                    "span": (0, 41),
+                    "captures": {1: (0, 12), 2: (0, 3), 3: (8, 12)},
+                },
+            },
+            {
+                "regex": r"((c.t|d.g) and (f..h|b..d)), \2 with \3, \1",
+                "string": "bat and fish, bat with fish, bat and fish",
+                "expected": None,
+            },
+        ]
+
+        run_tests(self, cases)
+
+
+class TestAnchors(unittest.TestCase):
+    def test_start_anchor(self):
+        cases = [
+            {
+                "regex": r"^a",
+                "string": "abc",
+                "expected": {"match": "a", "span": (0, 1), "captures": {}},
+            },
+            {"regex": r"^a", "string": "ba", "expected": None},
+        ]
+
+        run_tests(self, cases)
+
+    def test_end_anchor(self):
+        cases = [
+            {
+                "regex": r"a$",
+                "string": "ba",
+                "expected": {"match": "a", "span": (1, 2), "captures": {}},
+            },
+            {"regex": r"a$", "string": "ab", "expected": None},
+        ]
+
+        run_tests(self, cases)
+
+    def test_start_and_end_anchor(self):
+        cases = [
+            {
+                "regex": r"^abc$",
+                "string": "abc",
+                "expected": {"match": "abc", "span": (0, 3), "captures": {}},
+            },
+            {"regex": r"^abc$", "string": "zabc", "expected": None},
+        ]
+
+        run_tests(self, cases)
+
+
+class TestMetaSequences(unittest.TestCase):
+    def test_meta(self):
+
+        cases = [
+            {
+                "regex": r"\d+",
+                "string": "abc123",
+                "expected": {"match": "123", "span": (3, 6), "captures": {}},
+            },
+            {
+                "regex": r"\w+",
+                "string": "!!!abc123",
+                "expected": {"match": "abc123", "span": (3, 9), "captures": {}},
+            },
+            {
+                "regex": r"\s+",
+                "string": "a   b",
+                "expected": {"match": "   ", "span": (1, 4), "captures": {}},
+            },
+        ]
+
+        run_tests(self, cases)
+
+
+class TestComplexPatterns(unittest.TestCase):
+    def test_complex(self):
+        cases = [
+            {
+                "regex": r"(ab)+",
+                "string": "ababab",
+                "expected": {
+                    "match": "ababab",
+                    "span": (0, 6),
+                    "captures": {1: (4, 6)},
+                },
+            },
+            {
+                "regex": r"(ab)*c",
+                "string": "ababababc",
+                "expected": {
+                    "match": "ababababc",
+                    "span": (0, 9),
+                    "captures": {1: (6, 8)},
+                },
+            },
+            {
+                "regex": r"(a|b)+",
+                "string": "abba",
+                "expected": {"match": "abba", "span": (0, 4), "captures": {1: (3, 4)}},
+            },
+            {
+                "regex": r"(ab|cd)+",
+                "string": "abcdab",
+                "expected": {
+                    "match": "abcdab",
+                    "span": (0, 6),
+                    "captures": {1: (4, 6)},
+                },
+            },
+            {
+                "regex": r"^(a|b)+(cd)*e$",
+                "string": "ababcdcdcde",
+                "expected": {
+                    "match": "ababcdcdcde",
+                    "span": (0, 11),
+                    "captures": {1: (3, 4), 2: (8, 10)},
+                },
+            },
+            {
+                "regex": r"(\w+) \1",
+                "string": "hello hello world",
+                "expected": {
+                    "match": "hello hello",
+                    "span": (0, 11),
+                    "captures": {1: (0, 5)},
+                },
+            },
+        ]
+
+        run_tests(self, cases)
+
+
+class TestTortureCases(unittest.TestCase):
+    def test_torture(self):
+        cases = [
+            {
+                "regex": r"(a*)*",
+                "string": "aaa",
+                "expected": {
+                    "match": "aaa",
+                    "span": (0, 3),
+                    "captures": {1: (0, 3)},
+                },
+            },
+            {
+                "regex": r"(ab*)*",
+                "string": "abbbab",
+                "expected": {
+                    "match": "abbbab",
+                    "span": (0, 6),
+                    "captures": {1: (4, 6)},
+                },
+            },
+            {
+                "regex": r"(a|ab)*",
+                "string": "abaab",
+                "expected": {
+                    "match": "abaab",
+                    "span": (0, 5),
+                    "captures": {1: (3, 5)},
+                },
+            },
+            {
+                "regex": r"(a(b(c)))",
+                "string": "abc",
+                "expected": {
+                    "match": "abc",
+                    "span": (0, 3),
+                    "captures": {1: (0, 3), 2: (1, 3), 3: (2, 3)},
+                },
+            },
+        ]
+
+        run_tests(self, cases)
+
+
+if __name__ == "__main__":
+    unittest.main(failfast=True)

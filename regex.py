@@ -1,276 +1,691 @@
-import tokens
+from dataclasses import dataclass
+from abc import ABC, abstractmethod
+from collections import deque
+
+
+@dataclass
+class MatchState:
+    pos: int  # Current position in the string
+    captures: dict[
+        int, tuple[int, int]
+    ]  # Keys are group ID's and values are the start and end index of captured group
+
+
+class Node(ABC):
+    @abstractmethod
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        pass
+
+
+class Empty(Node):
+    def __str__(self) -> str:
+        return "Empty()"
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        return [MatchState(pos=state.pos, captures=state.captures.copy())]
+
+
+class Literal(Node):
+    def __init__(self, literal: str):
+        self.literal = literal
+
+    def __str__(self) -> str:
+        return f"Literal('{self.literal}')"
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        if state.pos >= len(s):
+            return []
+
+        c = s[state.pos]
+        if c == self.literal:
+            return [MatchState(pos=state.pos + 1, captures=state.captures.copy())]
+        return []
+
+
+class Dot(Node):
+    def __str__(self) -> str:
+        return "Dot('.')"
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        if state.pos >= len(s):
+            return []
+
+        c = s[state.pos]
+        if c != "\n":
+            return [MatchState(pos=state.pos + 1, captures=state.captures.copy())]
+        return []
+
+
+class StartAnchor(Node):
+    def __str__(self) -> str:
+        return "StartAnchor('^')"
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        if state.pos == 0:
+            return [state]
+        return []
+
+
+class EndAnchor(Node):
+    def __str__(self) -> str:
+        return "EndAnchor('$')"
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        if state.pos == len(s):
+            return [state]
+        return []
+
+
+class CharacterClass(Node):
+    def __init__(self, chars: set[str], complement: bool):
+        self.chars = chars
+        self.complement = complement
+
+    def __str__(self) -> str:
+        return (
+            f"CharacterClass('[{'^' if self.complement else ''}{''.join(self.chars)}]')"
+        )
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        if state.pos >= len(s):
+            return []
+
+        c = s[state.pos]
+
+        if c in self.chars:
+            if not self.complement:
+                return [MatchState(pos=state.pos + 1, captures=state.captures.copy())]
+        elif self.complement and c.isalpha():
+            return [MatchState(pos=state.pos + 1, captures=state.captures.copy())]
+
+        return []
+
+
+class MetaSequence(Node):
+    @staticmethod
+    def is_digit(c: str) -> bool:
+        return c.isdecimal()
+
+    @staticmethod
+    def is_word_char(c: str) -> bool:
+        return ("a" <= c <= "z") or ("A" <= c <= "Z") or ("0" <= c <= "9") or (c == "_")
+
+    @staticmethod
+    def is_space(c: str) -> bool:
+        return c.isspace()
+
+    registry = {
+        "d": is_digit,
+        "w": is_word_char,
+        "s": is_space,
+    }
+
+    def __init__(self, metaSequence: str):
+        self.metaSequence = metaSequence
+
+    def __str__(self) -> str:
+        return f"MetaSequence('\\{self.metaSequence}')"
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        if state.pos >= len(s):
+            return []
+
+        c = s[state.pos]
+        test = MetaSequence.registry[self.metaSequence]
+
+        if test(c):
+            return [MatchState(pos=state.pos + 1, captures=state.captures.copy())]
+        return []
+
+
+class Star(Node):
+    def __init__(self, node: Node):
+        self.node = node
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        results = [state]
+        queue = deque([state])
+        visited = set([state.pos])
+
+        while len(queue) != 0:
+            curr_state = queue.popleft()
+
+            for next_state in self.node.match(s, curr_state):
+                if next_state.pos in visited:
+                    continue
+
+                visited.add(next_state.pos)
+                queue.append(next_state)
+                results.append(next_state)
+
+        # Greedy (longest matches at beginning of array)
+        return list(sorted(results, key=lambda match: match.pos, reverse=True))
+
+
+class Plus(Node):
+    def __init__(self, node: Node):
+        self.node = node
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        results = []
+        queue = deque([state])
+        visited = set()
+
+        while len(queue) != 0:
+            curr_state = queue.popleft()
+
+            for next_state in self.node.match(s, curr_state):
+                if next_state.pos in visited:
+                    continue
+
+                visited.add(next_state.pos)
+                queue.append(next_state)
+                results.append(next_state)
+
+        # Greedy (longest matches at beginning of array)
+        return list(sorted(results, key=lambda match: match.pos, reverse=True))
+
+
+class Optional(Node):
+    def __init__(self, node: Node):
+        self.node = node
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        results = []
+        visited = set()
+
+        for next_state in self.node.match(s, state):
+            if next_state.pos in visited:
+                continue
+
+            visited.add(next_state.pos)
+            results.append(next_state)
+
+        if state.pos not in visited:
+            results.append(state)
+
+        return list(sorted(results, key=lambda match: match.pos, reverse=True))
+
+
+class Range(Node):
+    def __init__(self, node: Node, min: int, max: int):
+        self.node = node
+        self.min = min
+        self.max = max
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        frontier = [state]
+
+        for _ in range(self.min):
+            new_frontier = []
+            for curr_state in frontier:
+                new_frontier.extend(self.node.match(s, curr_state))
+
+            if len(new_frontier) == 0:
+                return []
+
+            frontier = new_frontier
+
+        results = frontier
+
+        # Case {n}
+        if self.min == self.max:
+            return list(sorted(results, key=lambda match: match.pos, reverse=True))
+
+        # Case {n,m}
+        remaining = self.max - self.min
+        for _ in range(remaining):
+            new_frontier = []
+            for curr_state in frontier:
+                new_frontier.extend(self.node.match(s, curr_state))
+
+            if len(new_frontier) == 0:
+                break
+
+            results.extend(new_frontier)
+            frontier = new_frontier
+
+        return list(sorted(results, key=lambda match: match.pos, reverse=True))
+
+
+class Alternation(Node):
+    def __init__(self, options: list[Node]):
+        self.options = options
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        results = []
+        for option in self.options:
+            results.extend(option.match(s, state))
+        return results
+
+
+class Group(Node):
+    def __init__(
+        self,
+        group_id: int,
+        node: Node,
+    ):
+        self.group_id = group_id
+        self.node = node
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        start = state.pos
+        results = []
+
+        for new_state in self.node.match(s, state):
+            new_captures = {**new_state.captures, self.group_id: (start, new_state.pos)}
+
+            results.append(MatchState(pos=new_state.pos, captures=new_captures))
+
+        return results
+
+
+class BackReference(Node):
+    def __init__(self, group_id: int):
+        self.group_id = group_id
+
+    def __str__(self) -> str:
+        return f"BackReference({self.group_id})"
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        if self.group_id not in state.captures:
+            return []
+
+        start, end = state.captures[self.group_id]
+        text = s[start:end]
+
+        if s.startswith(text, state.pos):
+            return [
+                MatchState(pos=state.pos + len(text), captures=state.captures.copy())
+            ]
+
+        return []
+
+
+class Sequence(Node):
+    def __init__(self, nodes: list[Node]):
+        self.nodes = nodes
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        queue = deque([(0, state)])
+        results = []
+
+        while len(queue) != 0:
+            index, curr_state = queue.popleft()
+
+            # If we've matched all nodes
+            if index == len(self.nodes):
+                results.append(curr_state)
+                continue
+
+            node = self.nodes[index]
+
+            for next_state in node.match(s, curr_state):
+                queue.append((index + 1, next_state))
+
+        return results
+
+
+def stringifyNode(node: Node, level=0) -> str:
+    indent = "    " * level
+
+    match node:
+        case Sequence(nodes=children) | Alternation(options=children):
+            label = type(node).__name__
+            body = ",\n".join(stringifyNode(c, level + 1) for c in children)
+            return f"{indent}{label}([\n{body}\n{indent}])"
+
+        case Star(node=child) | Plus(node=child) | Optional(node=child):
+            label = type(node).__name__
+            return f"{indent}{label}(\n{stringifyNode(child, level + 1)}\n{indent})"
+
+        case Group(node=child, group_id=group):
+            return f"{indent}Group(group={group}\n{stringifyNode(child, level + 1)}\n{indent})"
+
+        case Range(node=child, min=min, max=max):
+            return f"{indent}Range(min={min}, max={max}\n{stringifyNode(child, level + 1)}\n{indent})"
+
+        case _:
+            return f"{indent}{node}"
+
+
+@dataclass
+class Match:
+    match: str
+    span: tuple[int, int]
+    captures: dict[int, tuple[int, int]]
+
+    def start(self) -> int:
+        return self.span[0]
+
+    def end(self) -> int:
+        return self.span[1]
+
+
+class Pattern:
+    def __init__(self, pattern: str, numGroups: int, ast: Node):
+        self.pattern = pattern
+        self.numGroups = numGroups
+        self.ast = ast
+
+    def search(self, s: str) -> Match | None:
+        i = 0
+        while i < len(s):
+            matchStates = self.ast.match(s, MatchState(i, {}))
+            if len(matchStates) > 0:
+                # Pick first match
+                matchState = matchStates[0]
+                return Match(
+                    span=(i, matchState.pos),
+                    match=s[i : matchState.pos],
+                    captures=matchState.captures,
+                )
+
+            i += 1
+
+        return None
+
+    def match(self, s: str) -> Match | None:
+        matchStates = self.ast.match(s, MatchState(0, {}))
+        if len(matchStates) > 0:
+            # Pick first match
+            matchState = matchStates[0]
+            return Match(
+                span=(0, matchState.pos),
+                match=s[0 : matchState.pos],
+                captures=matchState.captures,
+            )
+        return None
+
+    def fullmatch(self, s: str) -> Match | None:
+        match = self.match(s)
+        if match is not None and len(s) == len(match.match):
+            return match
+        return None
+
+    def findall(self, s: str) -> list[Match]:
+        matches = []
+
+        i = 0
+        while i < len(s):
+            matchStates = self.ast.match(s, MatchState(i, {}))
+            if len(matchStates) > 0:
+                # Pick longest match
+                matchState = matchStates[-1]
+                matches.append(
+                    Match(
+                        span=(i, matchState.pos),
+                        match=s[i : matchState.pos],
+                        captures=matchState.captures,
+                    )
+                )
+                i = max(matchState.pos, i + 1)
+            else:
+                i += 1
+
+        return matches
+
+
 
 class InvalidPattern(Exception):
     pass
 
 
-class Match:
-    def __init__(self, start: int, end: int):
-        self.start = start
-        self.end = end
+class Parser:
+    meta_characters = {
+        ".",
+        "^",
+        "$",
+        "*",
+        "+",
+        "?",
+        "{",
+        "}",
+        "(",
+        ")",
+        "[",
+        "]",
+        "\\",
+        "|",
+    }
 
-class RE:
-    MAX_CAPTURE_GROUPS = 10
-
-    def __init__(self, pattern: str):
-        if pattern == "":
-            raise InvalidPattern("Empty pattern in invalid")
+    def __init__(self, pattern: str) -> None:
         self.pattern = pattern
-        self.tokens: list[tokens.Token] = self._compileTokens()
-        self.capturedGroups = [None for _ in range(RE.MAX_CAPTURE_GROUPS)]
+        self.i = 0
+        self.curr_group_id = 1
+        self.ast = None
 
-    def _compileTokens(self):
-        self._currGroupNum = 1
+    def parse(self) -> tuple[Node, int]:
+        if self.ast is None:
+            self.ast = self._parse_expression()
+        return self.ast, self.curr_group_id - 1
 
-        def _compileTokensHelper(pattern: str) -> list[tokens.Token]:
-            tkns, idx = [], 0
-            while idx < len(pattern):
-                char = pattern[idx]
+    def _peek(self) -> str:
+        if self.i >= len(self.pattern):
+            return ""
+        return self.pattern[self.i]
 
-                match char:
-                    case "*":
-                        if len(tkns) == 0: 
-                            raise InvalidPattern("No previous pattern to repeat zero or more times")
-                        
-                        prevToken = tkns.pop()
-                        tkns.append(tokens.TokenStar(prevToken))
+    def _consume(self, expected=None) -> str:
+        if self.i >= len(self.pattern):
+            raise IndexError("At end of pattern")
 
-                    case "+":
-                        if len(tkns) == 0: 
-                            raise InvalidPattern("No previous pattern to repeat one or more times")
-                        
-                        prevToken = tkns.pop()
-                        tkns.append(tokens.TokenPlus(prevToken))
+        c = self.pattern[self.i]
 
-                    case "?":
-                        if len(tkns) == 0: 
-                            raise InvalidPattern("No previous pattern to make optional")
-                        
-                        prevToken = tkns.pop()
-                        tkns.append(tokens.TokenOptional(prevToken))
+        if expected is not None and c != expected:
+            raise ValueError(f"Expected '{expected}' got '{c}'")
 
-                    case "^":
-                        if idx != 0: 
-                            raise InvalidPattern("'^' must be first character in pattern")
+        self.i += 1
+        return c
 
-                        tkns.append(tokens.TokenStart())
+    def _parse_expression(self) -> Node:
+        left = self._parse_sequence()
 
-                    case "$":
-                        if idx != len(pattern) - 1: 
-                            raise InvalidPattern("'$' must be last character in pattern")
+        if self._peek() == "|":
+            options = [left]
 
-                        tkns.append(tokens.TokenEnd())
+            while self._peek() == "|":
+                self._consume("|")
+                options.append(self._parse_sequence())
 
-                    case "\\":
-                        idx += 1
-                        if idx >= len(pattern): 
-                            raise InvalidPattern("Expected character class after '\\'")
+            return Alternation(options)
 
-                        char = pattern[idx]
-                        if char.isdigit():
-                            if int(char) >= self._currGroupNum: 
-                                raise InvalidPattern(f"Invalid capture group number '{char}'")
-                            
-                            tkns.append(tokens.TokenBackreference(groupNum=int(char)))
-                        else:
-                            if char not in "dw\\":
-                                raise InvalidPattern(f"Invalid character class '\\{char}'")
-                            
-                            tkns.append(tokens.TokenPredifinedClass(char))
+        return left
 
-                    case "[":
-                        idx += 1
-                        chars, negated, seenClosingBracket = set(), False, False
+    def _parse_sequence(self) -> Node:
+        nodes = []
 
-                        if pattern[idx] == "^":
-                            negated = True
-                            idx += 1
+        while self.i < len(self.pattern) and self._peek() not in "|)":
+            nodes.append(self._parse_repetition())
 
-                        while idx < len(pattern):
-                            if pattern[idx] == "]":
-                                seenClosingBracket = True
-                                break
+        if len(nodes) == 0:
+            return Empty()
 
-                            chars.add(pattern[idx])
-                            idx += 1
+        if len(nodes) == 1:
+            return nodes[0]
 
-                        if not seenClosingBracket:
-                            raise InvalidPattern("No closing bracket ']'")
+        return Sequence(nodes)
 
-                        tkns.append(tokens.TokenCharacterClass(chars, negated))
+    def _parse_repetition(self) -> Node:
+        node = self._parse_atom()
 
-                    case "(":
-                        idx += 1
-                        numOpeningParen, seenClosingParen = 1, False
-                        groupOptions, groupNum, subPattern = [], self._currGroupNum, ""
-                        self._currGroupNum += 1
+        c = self._peek()
 
-                        while idx < len(pattern):
-                            if pattern[idx] == ")" and numOpeningParen == 1:
-                                if subPattern != "":
-                                    groupOptions.append(_compileTokensHelper(subPattern))
-                                
-                                seenClosingParen = True
-                                break
-                            elif pattern[idx] == "|" and numOpeningParen == 1:
-                                groupOptions.append(_compileTokensHelper(subPattern))
-                                subPattern = ""
-                            else:
-                                if pattern[idx] == "(":
-                                    numOpeningParen += 1
-                                if pattern[idx] == ")":
-                                    numOpeningParen -= 1
-                                subPattern += pattern[idx]
-                            idx += 1
-                        
-                        if not seenClosingParen:
-                            raise InvalidPattern("No closing brace ')'")
+        if c == "*":
+            self._consume()
+            return Star(node)
+        if c == "+":
+            self._consume()
+            return Plus(node)
+        if c == "?":
+            self._consume()
+            return Optional(node)
+        if c == "{":
+            return self._parse_range(node)
 
-                        tkns.append(tokens.TokenGroup(groupOptions, groupNum))
+        return node
 
-                    case "{":
-                        if len(tkns) == 0: 
-                            raise InvalidPattern("No previous pattern to repeat")
-                        
-                        idx += 1
-                        minimum, maximum = "", ""
-                        seenComma, seenClosingBrace = False, False
+    def _parse_atom(self) -> Node:
+        c = self._peek()
 
-                        while idx < len(pattern):
-                            if pattern[idx].isdigit():
-                                if not seenComma:
-                                    minimum += pattern[idx]
-                                else:
-                                    maximum += pattern[idx]
-                            elif pattern[idx] == ",":
-                                seenComma = True
-                            elif pattern[idx] == "}":
-                                seenClosingBrace = True
-                                break
-                            else:
-                                raise InvalidPattern(f"Invalid characater '{pattern[idx]}' in range statement")
-                            idx += 1
+        if c == "(":
+            return self._parse_group()
+        if c == "[":
+            return self._parse_charclass()
+        if c == "\\":
+            return self._parse_backslash()
+        if c == ".":
+            self._consume()
+            return Dot()
+        if c == "^":
+            self._consume()
+            return StartAnchor()
+        if c == "$":
+            self._consume()
+            return EndAnchor()
 
-                        if not seenClosingBrace:
-                            raise InvalidPattern("No closing brace '}'")
-                        if minimum == "":
-                            raise InvalidPattern("No minimum value given in range statement")
-                        
-                        minimum = int(minimum)
-                        if maximum != "":
-                            maximum = int(maximum)
-                        else:
-                            maximum = float("inf") if seenComma else minimum
+        if c == ")":
+            raise InvalidPattern("')': Unmatched group")
 
-                        prevToken = tkns.pop()
-                        tkns.append(tokens.TokenRange(prevToken, int(minimum), maximum))
-                        
-                    case _:
-                        tkns.append(tokens.TokenChar(char))
-                idx += 1
+        self._consume()
+        return Literal(c)
 
-            return tkns
+    def _parse_backslash(self) -> Node:
+        self._consume("\\")
 
-        return _compileTokensHelper(self.pattern)
+        if self.i == len(self.pattern):
+            raise InvalidPattern("'': Pattern cannot end with trailing backslash")
 
-    def matchPattern(self, text: str) -> tuple[list[Match], bool]:
-        matches = []
-        textIdx = 0
-        while textIdx < len(text):
-            foundMatch, endIdx = self._matchHere(text, textIdx, self.tokens)
-            if foundMatch:
-                matches.append(Match(textIdx, endIdx))
-                textIdx = endIdx
-            else:
-                textIdx += 1
-        return matches, len(matches) > 0
+        c = self._peek()
 
-    def _matchHere(self, text: str, textIdx: int, tkns: list[tokens.Token]) -> tuple[bool, int]:
-        potentialMatchs = [(textIdx, 0)]
+        if c in MetaSequence.registry:
+            self._consume()
+            return MetaSequence(c)
 
-        while len(potentialMatchs) != 0:
-            currTextIdx, currTokenIdx = potentialMatchs.pop()
+        if c in Parser.meta_characters:
+            self._consume()
+            return Literal(c)
 
-            while currTokenIdx < len(tkns):
-                currToken = tkns[currTokenIdx]
+        if c.isdecimal():
+            group = self._consume()
 
-                match currToken.type:
-                    case tokens.TokenType.PLUS | tokens.TokenType.STAR:
-                        if currToken.type == tokens.TokenType.STAR:
-                            potentialMatchs.append((currTextIdx, currTokenIdx + 1))
+            while self._peek().isdecimal():
+                group += self._consume()
 
-                        textEnd = len(text)
-                        while currTextIdx != textEnd:
-                            matchedPrev, endIdx = self._matchHere(text, currTextIdx, [currToken.prev])
-                            if not matchedPrev:
-                                break
+            group = int(group)
+            if group >= self.curr_group_id:
+                raise InvalidPattern(f"'{group}': Invalid group reference")
 
-                            potentialMatchs.append((endIdx, currTokenIdx + 1))
-                            currTextIdx = endIdx
-                        break
+            return BackReference(group_id=group)
 
-                    case tokens.TokenType.RANGE:
-                        foundMin = True
-                        for _ in range(currToken.min):
-                            matchedPrev, endIdx = self._matchHere(text, currTextIdx, [currToken.prev])
-                            if not matchedPrev:
-                                foundMin = False
-                                break
-                            currTextIdx = endIdx
+        raise InvalidPattern(f"'\\{c}': This token has no special meaning")
 
-                        if not foundMin:
-                            break
+    def _parse_range(self, node: Node) -> Node:
+        self._consume("{")
 
-                        potentialMatchs.append((currTextIdx, currTokenIdx + 1))
+        min, max = "", ""
+        seenMax = False
 
-                        consumed = currToken.min
-                        while consumed < currToken.max:
-                            matchedPrev, endIdx = self._matchHere(text, currTextIdx, [currToken.prev])
-                            if not matchedPrev:
-                                break
-                            
-                            potentialMatchs.append((endIdx, currTokenIdx + 1))
-                            
-                            currTextIdx = endIdx
-                            consumed += 1
+        while self.i < len(self.pattern) and ((c := self._peek()) != "}"):
+            if c == ",":
+                seenMax = True
+                self._consume(",")
+                break
 
-                        break
-                    
-                    case tokens.TokenType.GROUP:
-                        for subTokens in currToken.groupOptions:
-                            foundMatch, endIdx = self._matchHere(text, currTextIdx, subTokens)
-                            if not foundMatch:
-                                continue
+            if not c.isdecimal():
+                raise InvalidPattern(f"'{c}': Invalid character in range quantifier")
 
-                            self.capturedGroups[currToken.groupNum - 1] = text[currTextIdx:endIdx]
-                            potentialMatchs.append((endIdx, currTokenIdx + 1))
-                        break
+            min += c
+            self._consume()
 
-                    case tokens.TokenType.OPTIONAL:
-                        potentialMatchs.append((currTextIdx, currTokenIdx + 1))
-                        matchedPrev, endIdx = self._matchHere(text, currTextIdx, [currToken.prev])
-                        if matchedPrev:
-                            potentialMatchs.append((endIdx, currTokenIdx + 1))
-                        break
+        while self.i < len(self.pattern) and ((c := self._peek()) != "}"):
+            if not c.isdecimal():
+                raise InvalidPattern(f"'{c}': Invalid character in range quantifier")
 
-                    case tokens.TokenType.BACKREFERENCE:
-                        capturedText = self.capturedGroups[currToken.groupNum - 1]
+            max += c
+            self._consume()
 
-                        endIdx = currTextIdx + len(capturedText)
-                        if endIdx <= len(text):    
-                            if text[currTextIdx:endIdx] == capturedText:
-                                potentialMatchs.append((endIdx, currTokenIdx + 1))
-                        break
+        if (c := self._peek()) != "}":
+            raise InvalidPattern("Missing closing '}'")
+        self._consume("}")
 
-                    case _:
-                        foundMatch, endIdx = currToken.match(text, currTextIdx)
-                        if not foundMatch:
-                            break
-                        
-                        currTextIdx = endIdx
-                        currTokenIdx += 1
+        # Case {n}
+        if not seenMax:
+            return Range(node, int(min), int(min))
 
-            if currTokenIdx == len(tkns):
-                return True, currTextIdx
+        # Case {n,}
+        if max == "":
+            return Sequence(
+                [
+                    Range(node, int(min), int(min)),
+                    Star(node),
+                ]
+            )
 
-        return False, -1
+        # Case {n,m}
+        if int(min) > int(max):
+            raise InvalidPattern(f"'{min} > {max}': Range quantifier is out of order")
+        return Range(node, int(min), int(max))
+
+    def _parse_group(self) -> Node:
+        self._consume("(")
+        group_id = self.curr_group_id
+        self.curr_group_id += 1
+
+        node = self._parse_expression()
+
+        if self._peek() != ")":
+            raise InvalidPattern("')': Unmatched parenthesis")
+
+        self._consume(")")
+        return Group(group_id, node)
+
+    def _parse_charclass(self) -> Node:
+        self._consume("[")
+
+        complement = False
+        if self._peek() == "^":
+            complement = True
+            self._consume()
+
+        chars = []
+
+        while self.i < len(self.pattern) and self._peek() != "]":
+            c = self._peek()
+
+            if c != "-" or len(chars) == 0:
+                chars.append(c)
+                self._consume()
+                continue
+
+            c = self._consume("-")
+
+            if self.i >= len(self.pattern):
+                raise InvalidPattern("']': Unmatched bracket")
+
+            if self._peek() == "]":
+                chars.append(c)
+                self._consume()
+                continue
+
+            start = chars.pop()
+            end = self._consume()
+
+            if ord(start) > ord(end):
+                raise InvalidPattern(f"'{start}-{end}': Invalid character range")
+
+            chars.extend([chr(i) for i in range(ord(start), ord(end) + 1)])
+
+        if self._peek() != "]":
+            raise InvalidPattern("']': Unmatched bracket")
+
+        self._consume("]")
+
+        return CharacterClass(chars=set(chars), complement=complement)
+
+
+
+def compile(pattern: str) -> Pattern:
+    parser = Parser(pattern)
+    ast, numGroups = parser.parse()
+
+    return Pattern(pattern=pattern, ast=ast, numGroups=numGroups)
