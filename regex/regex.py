@@ -94,30 +94,89 @@ class CharacterClass(Node):
 
         if c in self.chars:
             if not self.complement:
-                return [MatchState(pos=state.pos + 1, captures=state.captures.copy(),)]
+                return [
+                    MatchState(
+                        pos=state.pos + 1,
+                        captures=state.captures.copy(),
+                    )
+                ]
         elif self.complement and c.isalpha():
-            return [MatchState(pos=state.pos + 1, captures=state.captures.copy(),)]
+            return [
+                MatchState(
+                    pos=state.pos + 1,
+                    captures=state.captures.copy(),
+                )
+            ]
 
         return []
 
 
 class MetaSequence(Node):
     @staticmethod
-    def is_digit(c: str) -> bool:
-        return c.isdecimal()
-
-    @staticmethod
     def is_word_char(c: str) -> bool:
         return ("a" <= c <= "z") or ("A" <= c <= "Z") or ("0" <= c <= "9") or (c == "_")
 
-    @staticmethod
-    def is_space(c: str) -> bool:
-        return c.isspace()
+    def match_digit(self, s: str, state: MatchState) -> list[MatchState]:
+        if state.pos >= len(s):
+            return []
+        
+        c = s[state.pos]
+
+        if c.isdecimal():
+            return [MatchState(pos=state.pos + 1, captures=state.captures.copy())]
+        return []
+
+    def match_word_char(self, s: str, state: MatchState) -> list[MatchState]:
+        if state.pos >= len(s):
+            return []
+        
+        c = s[state.pos]
+
+        if MetaSequence.is_word_char(c):
+            return [MatchState(pos=state.pos + 1, captures=state.captures.copy())]
+        return []
+
+    def match_space(self, s: str, state: MatchState) -> list[MatchState]:
+        if state.pos >= len(s):
+            return []
+        
+        c = s[state.pos]
+
+        if c.isspace():
+            return [MatchState(pos=state.pos + 1, captures=state.captures.copy())]
+        return []
+
+    def match_word_boundary(self, s: str, state: MatchState) -> list[MatchState]:
+        # Handle match at end of string
+        if state.pos >= len(s):
+            prev_c = s[state.pos-1]
+
+            if MetaSequence.is_word_char(prev_c):
+                return [MatchState(pos=state.pos, captures=state.captures.copy())]
+            return []
+        
+        # Handle match at beginning of string
+        if state.pos == 0:
+            c = s[state.pos]
+
+            if MetaSequence.is_word_char(c):
+                return [MatchState(pos=state.pos, captures=state.captures.copy())]
+            return []
+
+        
+        prev_c = s[state.pos-1]
+        c = s[state.pos]
+        
+        if MetaSequence.is_word_char(prev_c) ^ MetaSequence.is_word_char(c):
+            return [MatchState(pos=state.pos, captures=state.captures.copy())]
+        return []
+        
 
     registry = {
-        "d": is_digit,
-        "w": is_word_char,
-        "s": is_space,
+        "d": match_digit,
+        "w": match_word_char,
+        "s": match_space,
+        "b": match_word_boundary,
     }
 
     def __init__(self, metaSequence: str):
@@ -127,15 +186,8 @@ class MetaSequence(Node):
         return f"MetaSequence('\\{self.metaSequence}')"
 
     def match(self, s: str, state: MatchState) -> list[MatchState]:
-        if state.pos >= len(s):
-            return []
-
-        c = s[state.pos]
-        test = MetaSequence.registry[self.metaSequence]
-
-        if test(c):
-            return [MatchState(pos=state.pos + 1, captures=state.captures.copy())]
-        return []
+        matcher = MetaSequence.registry[self.metaSequence]
+        return matcher(self, s, state)
 
 
 class Star(Node):

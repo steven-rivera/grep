@@ -124,6 +124,26 @@ class TestCharacterClass(unittest.TestCase):
                 "expected": {"match": "x", "span": (3, 4), "captures": {}},
             },
             {
+                "regex": r"[a-f]at",
+                "string": "cat",
+                "expected": {"match": "cat", "span": (0, 3), "captures": {}},
+            },
+            {
+                "regex": r"[a-f]at",
+                "string": "hat",
+                "expected": None,
+            },
+            {
+                "regex": r"[^a-f]at",
+                "string": "cat",
+                "expected": None,
+            },
+            {
+                "regex": r"[^a-f]at",
+                "string": "hat",
+                "expected": {"match": "hat", "span": (0, 3), "captures": {}},
+            },
+            {
                 "regex": r"[^a]",
                 "string": "ba",
                 "expected": {"match": "b", "span": (0, 1), "captures": {}},
@@ -493,6 +513,71 @@ class TestMetaSequences(unittest.TestCase):
                 "regex": r"\s+",
                 "string": "a   b",
                 "expected": {"match": "   ", "span": (1, 4), "captures": {}},
+            },
+            {
+                "regex": r"a\b",
+                "string": "aaa bbb",
+                "expected": {"match": "a", "span": (2, 3), "captures": {}},
+            },
+            {
+                "regex": r"a\b",
+                "string": "aaa",
+                "expected": {"match": "a", "span": (2, 3), "captures": {}},
+            },
+            {
+                "regex": r"\ba",
+                "string": "aaa",
+                "expected": {"match": "a", "span": (0, 1), "captures": {}},
+            },
+            {
+                "regex": r"a\b",
+                "string": "aaabbb",
+                "expected": None,
+            },
+            {
+                "regex": r"\ba",
+                "string": "baa",
+                "expected": None,
+            },
+            {
+                "regex": r"#\b",
+                "string": "#1",
+                "expected": {"match": "#", "span": (0, 1), "captures": {}},
+            },
+            {
+                "regex": r"#\b",
+                "string": "# 1",
+                "expected": None,
+            },
+            {
+                "regex": r"#\b",
+                "string": "#",
+                "expected": None,
+            },
+            {
+                "regex": r"\ba\b",
+                "string": "a",
+                "expected": {"match": "a", "span": (0, 1), "captures": {}},
+            },
+            {
+                "regex": r"\ba\b",
+                "string": "c a t",
+                "expected": {"match": "a", "span": (2, 3), "captures": {}},
+            },
+            {
+                "regex": r"\ba\b",
+                "string": "at",
+                "expected": None,
+            },
+            {
+                "regex": r"\ba\b",
+                "string": "cat",
+                "expected": None,
+            },
+            {
+                "regex": r"\ba\b",
+                "string": "ca",
+                "expected": None,
             },
         ]
 
