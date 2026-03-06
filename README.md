@@ -6,25 +6,16 @@ This is a command-line tool written in Python that mimics the behavior of grep b
     <img src="images/example.png" width="50%"/>
 </div>
 
-## Supported Regex
-
-The program supports the following regular expression constructs
-
-### Character
-
-- Matches a literal character 
+## Supported Tokens
 
 ### Dot
 
 - `.`: Matches any character
 
-### Start Anchor
+### Anchors
 
 - `^`: Asserts that the following pattern must match at the start of the input or line
     - Ex: `^World` matches `World` but not `Hello World`
-
-### End Anchor
-
 - `$`: Asserts that the preceding pattern must match at the end of the input or line
     - Ex: `World$` matches `Hello World` but not `Worldwide`
 
@@ -37,12 +28,14 @@ The program supports the following regular expression constructs
 - `?` Matches 0 or 1 occurrence of the previous element
     - Ex: `ba?t` matches `bat`or `bt` but not `baat`
 
-### Predefined Classes
+### Meta Sequences
 
 - `\d` matches any digit (0-9)
     - Ex: `\d apples` matches `5 apples` but not `five apples`
 - `\w` matches any word character (letters, digits, underscores)
     - Ex: `\w\w`matchs `hi` but not `h!`
+- `\s` matches any whitespace character (space, tab, newline)
+
 
 ### Character Classes
 
@@ -50,31 +43,56 @@ The program supports the following regular expression constructs
     - Ex: `[bc]at` matches `cat` but not `rat`
 - `[^...]` matches any character except the ones listed
     - Ex: `[^bc]at` matches `rat` but not `cat`
+- `[^a-f]` matches any character in the range `a` - `f`
+    - Ex: `[a-f]at` matches `bat` but not `hat`
 
-### Grouping and Alternation
+### Alternation
 
-- `(...)`: Creates a group that can be referenced later and allows for alternation
-    - Ex: `(cat|dog)` matches `cat` or `dog` but not `bat`
+- `PTRN1|PTRN`: Matches either `PTRN1` or `PATRN2`
+    - Ex: `cat|dog` matches `cat` or `dog` but not `bat`
+
+### Grouping
+
+- `(...)`: Isolates part of the full match to be later referred to by ID within the regex. Can also be used in combination with repetition operators or ranges.
+    - Ex: `(ab)+` matches `ab`, `abab`, `ababab` and so on
 
 ### Backreference
 
 - `\n` refers to the nth grouped sub pattern, allowing you to reuse the matched text later in the pattern
-    - Ex: `(\d+) (\w+) squares and \1 \2 circles` matches `3 red squares and 3 red circles` but not `3 red squares and 3 blue circles`
+    - Ex: `(\w+) egg and \1 ham` matches `green eggs and green ham`
 
 ### Range Quantifiers
 
 - `{n}` Matches exactly `n` occurrences of the previous element 
     - Ex: `ca{3}t` matches `caaat` but not `caat`
-- `{n, m}` Greedily matches between `n` and `m` occurrences of the previous element 
-    - Ex: `(ha){2,3}` matches `haha` or `hahaha` but not `ha`
+- `{n,m}` Greedily matches between `n` and `m` occurrences of the previous element 
+    - Ex: `(ha){2,3}` matches `haha` and `hahaha` but not `ha`
 - `{n,}` Greedily matches `n` or more occurrences of the previous element 
     - Ex: `bo{2,}` matches `boooo` but not `bo`
 
+## Regex Grammar
 
-## Requirements
+The regex engine supports the following grammar:
 
-- Python `v3.12+`
+```
+regex              := sequence ('|' sequence)*
+sequence           := repetition+
+repetition         := atom ('*' | '+' | '?' | range)?
+range              := '{' number (',' number?)? '}'
+number             := ('0' | '1' | ... | '9')+
+
+atom               := '.' | '^' | '$' | literal | charclass | group | backreference | metasequence | escape
+charclass          := '[' '^'? (literal | literal '-' literal)+ ']'
+group              := '(' regex ')'
+backreference      := '\' number
+metasequence       := '\' ('d' | 'D'| 'w' | 'W' | 's' | 'S')
+escape             := '\' ('.' | '^' | '$' | '*' | '+' | '?' | '{' | '}' | '(' | ')' | '[' | ']' | '\' | '|')
+```
+
+
 ## Usage
+
+### As Program
 
 The program can be run from the command-line and has the following usage pattern:
 
@@ -90,12 +108,12 @@ options:
                         If no file is provided read from stdin
 ```
   
-### Examples
+#### Examples
 
 1. Searching a file for given pattern:
 
 ```bash
-python3 main.py -f example.txt "^(abc|def)\d+$"
+python3 main.py -f example.txt "(\d{3}-){2}\d{4}"
 ```
 
 2. Searching from Standard Input:
@@ -103,3 +121,30 @@ python3 main.py -f example.txt "^(abc|def)\d+$"
 ```bash
 cat example.txt | python3 main.py "(\d{3}-){2}\d{4}"
 ```
+
+
+### As Module
+
+You can also import the engine to use in your own python programs. It follows a similar API to Python's standard library module `re`.  To use simply import `regex` and call the `compile(regex)` function which will return a `Pattern` object that can be used to match strings against the regex pattern. `Pattern` supports the following methods:
+
+- `.search(str)`: Will search the entire string and return the first  substring that matches as a `Match` object or `None` if no match was found
+- `.match(str)`: Will return a `Match` object if the pattern matches at the **beginning** of the string, else `None`
+- `.fullmatch(str)`:  Will return a `Match` object only if the pattern matches the **entire** string, else `None`
+- `.findall(str)`: Will search the entire string and return all substrings that match the pattern and return a list of `Match` objects 
+
+
+#### Example
+
+```python
+import regex
+
+pattern = regex.compile(r"(\d{3}-){2}\d{4}")
+m = pattern.search("My number is 123-456-7890")
+print(m)
+# Match(match='123-456-7890', span=(13, 25), captures={1: (17, 21)})
+```
+
+
+## Requirements
+
+- Python `v3.12+`
