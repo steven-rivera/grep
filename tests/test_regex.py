@@ -2,8 +2,7 @@ import unittest
 import regex
 
 
-def run_tests(testcase: unittest.TestCase, test_cases):
-
+def run_tests(test: unittest.TestCase, test_cases):
     for case in test_cases:
         re = case["regex"]
         string = case["string"]
@@ -12,38 +11,38 @@ def run_tests(testcase: unittest.TestCase, test_cases):
         res = regex.compile(re).search(string)
 
         if res is None:
-            testcase.assertIsNone(
+            test.assertIsNone(
                 expected,
                 msg=f"Regex '{re}' on '{string}' expected None but got {res}",
             )
 
             continue
 
-        testcase.assertIsNotNone(
+        test.assertIsNotNone(
             expected,
             msg=f"Regex '{re}' on '{string}' expected None but got {res}",
         )
 
-        testcase.assertEqual(
+        test.assertEqual(
             res.match,
             expected["match"],
             msg=f"Regex '{re}' on '{string}' returned wrong match",
         )
 
-        testcase.assertEqual(
+        test.assertEqual(
             res.span,
             expected["span"],
             msg=f"Regex '{re}' on '{string}' returned wrong span",
         )
 
-        testcase.assertEqual(
+        test.assertEqual(
             res.captures,
             expected["captures"],
             msg=f"Regex '{re}' on '{string}' returned wrong captures",
         )
 
 
-class TestLiterals(unittest.TestCase):
+class TestMatch(unittest.TestCase):
     def test_literals(self):
         cases = [
             {
@@ -76,8 +75,6 @@ class TestLiterals(unittest.TestCase):
 
         run_tests(self, cases)
 
-
-class TestDot(unittest.TestCase):
     def test_dot(self):
         cases = [
             {
@@ -104,8 +101,6 @@ class TestDot(unittest.TestCase):
 
         run_tests(self, cases)
 
-
-class TestCharacterClass(unittest.TestCase):
     def test_charclass(self):
         cases = [
             {
@@ -157,8 +152,6 @@ class TestCharacterClass(unittest.TestCase):
 
         run_tests(self, cases)
 
-
-class TestAlternation(unittest.TestCase):
     def test_alternation(self):
         cases = [
             {
@@ -185,8 +178,6 @@ class TestAlternation(unittest.TestCase):
 
         run_tests(self, cases)
 
-
-class TestQuantifiers(unittest.TestCase):
     def test_star(self):
         cases = [
             {
@@ -266,8 +257,6 @@ class TestQuantifiers(unittest.TestCase):
 
         run_tests(self, cases)
 
-
-class TestRange(unittest.TestCase):
     def test_range(self):
         cases = [
             {
@@ -309,8 +298,6 @@ class TestRange(unittest.TestCase):
 
         run_tests(self, cases)
 
-
-class TestGroups(unittest.TestCase):
     def test_groups(self):
         cases = [
             {
@@ -361,8 +348,6 @@ class TestGroups(unittest.TestCase):
 
         run_tests(self, cases)
 
-
-class TestBackreferences(unittest.TestCase):
     def test_backrefs(self):
         cases = [
             {
@@ -456,8 +441,6 @@ class TestBackreferences(unittest.TestCase):
 
         run_tests(self, cases)
 
-
-class TestAnchors(unittest.TestCase):
     def test_start_anchor(self):
         cases = [
             {
@@ -494,9 +477,7 @@ class TestAnchors(unittest.TestCase):
 
         run_tests(self, cases)
 
-
-class TestMetaSequences(unittest.TestCase):
-    def test_meta(self):
+    def test_metasequences(self):
 
         cases = [
             {
@@ -583,9 +564,7 @@ class TestMetaSequences(unittest.TestCase):
 
         run_tests(self, cases)
 
-
-class TestComplexPatterns(unittest.TestCase):
-    def test_complex(self):
+    def test_complex_patterns(self):
         cases = [
             {
                 "regex": r"(ab)+",
@@ -641,9 +620,7 @@ class TestComplexPatterns(unittest.TestCase):
 
         run_tests(self, cases)
 
-
-class TestTortureCases(unittest.TestCase):
-    def test_torture(self):
+    def test_torture_case(self):
         cases = [
             {
                 "regex": r"(a*)*",

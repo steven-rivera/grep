@@ -1,3 +1,4 @@
-from .regex import Match, compile, Pattern, InvalidPattern
+from .pattern import compile, Pattern, Match
+from .parser import InvalidPattern
 
-__all__ = ["Match", "compile", "Pattern", "InvalidPattern"]
+__all__ = ["compile", "Pattern", "Match", "InvalidPattern"]
