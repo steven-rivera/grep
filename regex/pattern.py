@@ -1,6 +1,7 @@
 from .match import Match, MatchState
 from .parser import Parser
 from . import nodes
+from typing import Iterator
 
 
 class Pattern:
@@ -9,33 +10,19 @@ class Pattern:
         self._numGroups = numGroups
         self._ast = ast
 
+
     def search(self, s: str) -> Match | None:
-        i = 0
-        while i < len(s):
-            matchStates = self._ast.match(s, MatchState(i, {}))
-            if len(matchStates) > 0:
-                matchState = matchStates[-1]
-                return Match(
-                    span=(i, matchState.pos),
-                    match=s[i : matchState.pos],
-                    captures=matchState.captures,
-                )
+        gen = self._find_all(s, stop=len(s))
+        return next(gen, None)
+    
+    def findall(self, s: str) -> list[Match]:
+        return [match for match in self._find_all(s, stop=len(s))]
 
-            i += 1
-
-        return None
 
     def match(self, s: str) -> Match | None:
-        matchStates = self._ast.match(s, MatchState(0, {}))
-        if len(matchStates) > 0:
-            # Pick first match
-            matchState = matchStates[-1]
-            return Match(
-                span=(0, matchState.pos),
-                match=s[0 : matchState.pos],
-                captures=matchState.captures,
-            )
-        return None
+        gen = self._find_all(s, stop=1)
+        return next(gen, None)
+    
 
     def fullmatch(self, s: str) -> Match | None:
         match = self.match(s)
@@ -43,27 +30,25 @@ class Pattern:
             return match
         return None
 
-    def findall(self, s: str) -> list[Match]:
-        matches = []
-
+    def _find_all(self, s: str, stop: int) -> Iterator[Match]:
         i = 0
-        while i < len(s):
-            matchStates = self._ast.match(s, MatchState(i, {}))
-            if len(matchStates) > 0:
-                # Pick longest match
-                matchState = matchStates[-1]
-                matches.append(
-                    Match(
-                        span=(i, matchState.pos),
-                        match=s[i : matchState.pos],
-                        captures=matchState.captures,
-                    )
-                )
-                i = max(matchState.pos, i + 1)
-            else:
-                i += 1
+        while i < stop:
+            match_states = self._ast.match(s, MatchState(i, {}))
 
-        return matches
+            if len(match_states) == 0:
+                i += 1
+                continue
+
+            ms = match_states[-1]
+            m = Match(
+                span=(i, ms.pos),
+                match=s[i : ms.pos],
+                captures=ms.captures,
+            )
+
+            yield m
+            
+            i = max(ms.pos, i + 1)
 
 
 def compile(pattern: str) -> Pattern:
