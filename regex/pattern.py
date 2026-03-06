@@ -14,8 +14,7 @@ class Pattern:
         while i < len(s):
             matchStates = self._ast.match(s, MatchState(i, {}))
             if len(matchStates) > 0:
-                # Pick first match
-                matchState = matchStates[0]
+                matchState = matchStates[-1]
                 return Match(
                     span=(i, matchState.pos),
                     match=s[i : matchState.pos],
@@ -30,7 +29,7 @@ class Pattern:
         matchStates = self._ast.match(s, MatchState(0, {}))
         if len(matchStates) > 0:
             # Pick first match
-            matchState = matchStates[0]
+            matchState = matchStates[-1]
             return Match(
                 span=(0, matchState.pos),
                 match=s[0 : matchState.pos],

@@ -219,21 +219,20 @@ class Star(Node):
     def match(self, s: str, state: MatchState) -> list[MatchState]:
         results = [state]
         queue = deque([state])
-        visited = set([state.pos])
+        visited = set([state])
 
         while len(queue) != 0:
             curr_state = queue.popleft()
 
             for next_state in self.node.match(s, curr_state):
-                if next_state.pos in visited:
+                if next_state in visited:
                     continue
 
-                visited.add(next_state.pos)
+                visited.add(next_state)
                 queue.append(next_state)
                 results.append(next_state)
-
-        # Greedy (longest matches at beginning of array)
-        return list(sorted(results, key=lambda match: match.pos, reverse=True))
+        
+        return results
 
 
 class Plus(Node):
@@ -254,15 +253,14 @@ class Plus(Node):
             curr_state = queue.popleft()
 
             for next_state in self.node.match(s, curr_state):
-                if next_state.pos in visited:
+                if next_state in visited:
                     continue
 
-                visited.add(next_state.pos)
+                visited.add(next_state)
                 queue.append(next_state)
                 results.append(next_state)
 
-        # Greedy (longest matches at beginning of array)
-        return list(sorted(results, key=lambda match: match.pos, reverse=True))
+        return results
 
 
 class Optional(Node):
@@ -275,20 +273,17 @@ class Optional(Node):
         return False
 
     def match(self, s: str, state: MatchState) -> list[MatchState]:
-        results = []
-        visited = set()
+        results = [state]
+        visited = set([state])
 
         for next_state in self.node.match(s, state):
-            if next_state.pos in visited:
+            if next_state in visited:
                 continue
 
-            visited.add(next_state.pos)
+            visited.add(next_state)
             results.append(next_state)
 
-        if state.pos not in visited:
-            results.append(state)
-
-        return list(sorted(results, key=lambda match: match.pos, reverse=True))
+        return results
 
 
 class Range(Node):
@@ -321,13 +316,8 @@ class Range(Node):
 
         results = frontier
 
-        # Case {n}
-        if self.min == self.max:
-            return list(sorted(results, key=lambda match: match.pos, reverse=True))
-
-        # Case {n,m}
-        remaining = self.max - self.min
-        for _ in range(remaining):
+        # Only runs for {n,m}
+        for _ in range(self.max - self.min):
             new_frontier = []
             for curr_state in frontier:
                 new_frontier.extend(self.node.match(s, curr_state))
@@ -338,7 +328,8 @@ class Range(Node):
             results.extend(new_frontier)
             frontier = new_frontier
 
-        return list(sorted(results, key=lambda match: match.pos, reverse=True))
+        return results
+
 
 
 class Alternation(Node):

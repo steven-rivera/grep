@@ -71,6 +71,5 @@ def main():
         else:
             search_stdin(pattern)
 
-
 if __name__ == "__main__":
     main()

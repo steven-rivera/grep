@@ -628,7 +628,7 @@ class TestMatch(unittest.TestCase):
                 "expected": {
                     "match": "aaa",
                     "span": (0, 3),
-                    "captures": {1: (0, 3)},
+                    "captures": {1: (3, 3)},
                 },
             },
             {
