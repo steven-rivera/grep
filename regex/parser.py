@@ -133,14 +133,14 @@ class Parser:
             return self._parse_charclass()
         if c == "\\":
             return self._parse_backslash()
+        
+        self._consume()
+
         if c == ".":
-            self._consume()
             return Dot()
         if c == "^":
-            self._consume()
             return StartAnchor()
         if c == "$":
-            self._consume()
             return EndAnchor()
 
         if c == "?":
@@ -148,7 +148,6 @@ class Parser:
         if c == ")":
             raise InvalidPattern("')': Unmatched group")
 
-        self._consume()
         return Literal(c)
 
     def _parse_backslash(self) -> Node:
@@ -157,18 +156,16 @@ class Parser:
         if self.i == len(self.pattern):
             raise InvalidPattern("'': Pattern cannot end with trailing backslash")
 
-        c = self._peek()
+        c = self._consume()
 
         if c in MetaSequence.registry:
-            self._consume()
             return MetaSequence(c)
 
         if c in Parser.META_CHARS:
-            self._consume()
             return Literal(c)
 
         if c.isdecimal():
-            group = self._consume()
+            group = c
 
             while self._peek().isdecimal():
                 group += self._consume()
@@ -279,7 +276,7 @@ class Parser:
         complement = False
         if self._peek() == "^":
             complement = True
-            self._consume()
+            self._consume("^")
 
         chars = []
 
