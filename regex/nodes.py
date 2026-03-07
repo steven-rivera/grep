@@ -465,7 +465,7 @@ class PositiveLookAhead(Node):
         for new_state in self.node.match(s, state):
             return [MatchState(pos=state.pos, captures=new_state.captures.copy())]
         return []
-    
+
 
 class NegativeLookAhead(Node):
     def __init__(self, node: Node):
@@ -547,7 +547,13 @@ def stringify_node(node: Node, level=0) -> str:
             body = ",\n".join(stringify_node(c, level + 1) for c in children)
             return f"{indent}{label}([\n{body}\n{indent}])"
 
-        case Star(node=child) | Plus(node=child) | Optional(node=child) | PositiveLookAhead(node=child) | NegativeLookAhead(node=child):
+        case (
+            Star(node=child)
+            | Plus(node=child)
+            | Optional(node=child)
+            | PositiveLookAhead(node=child)
+            | NegativeLookAhead(node=child)
+        ):
             label = type(node).__name__
             return f"{indent}{label}(\n{stringify_node(child, level + 1)}\n{indent})"
 

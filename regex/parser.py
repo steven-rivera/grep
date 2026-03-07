@@ -298,7 +298,6 @@ class Parser:
             raise InvalidPattern("']': Unmatched bracket")
         self._consume("]")
 
-
         return CharacterClass(
             chars={c for sublist in chars for c in sublist},
             complement=complement,

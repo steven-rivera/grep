@@ -35,7 +35,7 @@ def search_stdin(pattern: regex.Pattern):
 
 
 def search_file(pattern: regex.Pattern, file: str):
-    try: 
+    try:
         with open(file) as f:
             for line_num, line in enumerate(f, start=1):
                 line = line.rstrip("\n")
@@ -47,7 +47,6 @@ def search_file(pattern: regex.Pattern, file: str):
                 print(f"{line_num}: {highlight_matches(matches, line)}")
     except FileNotFoundError as e:
         print(f"Error: {e}")
-
 
 
 def main():
@@ -70,6 +69,7 @@ def main():
             search_file(pattern, args.file)
         else:
             search_stdin(pattern)
+
 
 if __name__ == "__main__":
     main()

@@ -179,18 +179,14 @@ class TestParser(unittest.TestCase):
             {
                 "regex": r"[-a]",
                 "expected": {
-                    "ast": nodes.CharacterClass(
-                        chars={"a", "-"}, complement=False
-                    ),
+                    "ast": nodes.CharacterClass(chars={"a", "-"}, complement=False),
                     "groups": 0,
                 },
             },
             {
                 "regex": r"[b-]",
                 "expected": {
-                    "ast": nodes.CharacterClass(
-                        chars={"b", "-"}, complement=False
-                    ),
+                    "ast": nodes.CharacterClass(chars={"b", "-"}, complement=False),
                     "groups": 0,
                 },
             },

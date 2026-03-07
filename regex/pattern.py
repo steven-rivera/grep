@@ -10,19 +10,16 @@ class Pattern:
         self._numGroups = numGroups
         self._ast = ast
 
-
     def search(self, s: str) -> Match | None:
         gen = self._find_all(s, stop=len(s))
         return next(gen, None)
-    
+
     def findall(self, s: str) -> list[Match]:
         return [match for match in self._find_all(s, stop=len(s))]
-
 
     def match(self, s: str) -> Match | None:
         gen = self._find_all(s, stop=1)
         return next(gen, None)
-    
 
     def fullmatch(self, s: str) -> Match | None:
         match = self.match(s)
@@ -47,7 +44,7 @@ class Pattern:
             )
 
             yield m
-            
+
             i = max(ms.pos, i + 1)
 
 
