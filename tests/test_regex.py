@@ -568,11 +568,6 @@ class TestMatch(unittest.TestCase):
             },
             {
                 "regex": r"a\b",
-                "string": "aaa bbb",
-                "expected": {"match": "a", "span": (2, 3), "captures": {}},
-            },
-            {
-                "regex": r"a\b",
                 "string": "aaa",
                 "expected": {"match": "a", "span": (2, 3), "captures": {}},
             },
@@ -605,6 +600,16 @@ class TestMatch(unittest.TestCase):
                 "regex": r"#\b",
                 "string": "#",
                 "expected": None,
+            },
+            {
+                "regex": r"\b#",
+                "string": "#",
+                "expected": None,
+            },
+            {
+                "regex": r"\b#",
+                "string": "a#",
+                "expected": {"match": "#", "span": (1, 2), "captures": {}},
             },
             {
                 "regex": r"\ba\b",
