@@ -139,7 +139,7 @@ class MetaSequence(Node):
         if c.isdecimal():
             return [MatchState(pos=state.pos + 1, captures=state.captures.copy())]
         return []
-    
+
     def match_non_digit(self, s: str, state: MatchState) -> list[MatchState]:
         if state.pos >= len(s):
             return []
@@ -159,7 +159,7 @@ class MetaSequence(Node):
         if MetaSequence.is_word_char(c):
             return [MatchState(pos=state.pos + 1, captures=state.captures.copy())]
         return []
-    
+
     def match_non_word_char(self, s: str, state: MatchState) -> list[MatchState]:
         if state.pos >= len(s):
             return []
@@ -179,7 +179,7 @@ class MetaSequence(Node):
         if c.isspace():
             return [MatchState(pos=state.pos + 1, captures=state.captures.copy())]
         return []
-    
+
     def match_non_space(self, s: str, state: MatchState) -> list[MatchState]:
         if state.pos >= len(s):
             return []
@@ -213,7 +213,7 @@ class MetaSequence(Node):
         if MetaSequence.is_word_char(prev_c) ^ MetaSequence.is_word_char(c):
             return [MatchState(pos=state.pos, captures=state.captures.copy())]
         return []
-    
+
     def match_non_word_boundary(self, s: str, state: MatchState) -> list[MatchState]:
         # Handle match at end of string
         if state.pos >= len(s):
@@ -246,7 +246,7 @@ class MetaSequence(Node):
         "s": match_space,
         "S": match_non_space,
         "b": match_word_boundary,
-        "B": match_non_word_boundary
+        "B": match_non_word_boundary,
     }
 
     def __init__(self, metaSequence: str):
@@ -279,7 +279,6 @@ class Star(Node):
         results = [state]
         visited = set([state])
         queue = deque([state])
-        
 
         while len(queue) != 0:
             curr_state = queue.popleft()
@@ -291,10 +290,10 @@ class Star(Node):
                 visited.add(next_state)
                 queue.append(next_state)
                 results.append(next_state)
-        
+
         if self.is_lazy:
             return list(reversed(results))
-        
+
         return results
 
 
@@ -312,7 +311,7 @@ class Plus(Node):
         results = []
         visited = set()
         queue = deque([state])
-        
+
         while len(queue) != 0:
             curr_state = queue.popleft()
 
@@ -326,7 +325,7 @@ class Plus(Node):
 
         if self.is_lazy:
             return list(reversed(results))
-        
+
         return results
 
 
@@ -353,7 +352,7 @@ class Optional(Node):
 
         if self.is_lazy:
             return list(reversed(results))
-        
+
         return results
 
 
@@ -406,7 +405,6 @@ class Range(Node):
         return results
 
 
-
 class Alternation(Node):
     def __init__(self, options: list[Node]):
         self.options = options
@@ -424,6 +422,8 @@ class Alternation(Node):
 
 
 class Group(Node):
+    NON_CAPTURE_ID = -1
+
     def __init__(
         self,
         group_id: int,
@@ -442,11 +442,44 @@ class Group(Node):
         results = []
 
         for new_state in self.node.match(s, state):
-            new_captures = {**new_state.captures, self.group_id: (start, new_state.pos)}
+            new_captures = {**new_state.captures}
+
+            if self.group_id != Group.NON_CAPTURE_ID:
+                new_captures[self.group_id] = (start, new_state.pos)
 
             results.append(MatchState(pos=new_state.pos, captures=new_captures))
 
         return results
+
+
+class PositiveLookAhead(Node):
+    def __init__(self, node: Node):
+        self.node = node
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, PositiveLookAhead):
+            return other.node == self.node
+        return False
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        for new_state in self.node.match(s, state):
+            return [MatchState(pos=state.pos, captures=new_state.captures.copy())]
+        return []
+    
+
+class NegativeLookAhead(Node):
+    def __init__(self, node: Node):
+        self.node = node
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, NegativeLookAhead):
+            return other.node == self.node
+        return False
+
+    def match(self, s: str, state: MatchState) -> list[MatchState]:
+        for _ in self.node.match(s, state):
+            return []
+        return [state]
 
 
 class BackReference(Node):
@@ -514,7 +547,7 @@ def stringify_node(node: Node, level=0) -> str:
             body = ",\n".join(stringify_node(c, level + 1) for c in children)
             return f"{indent}{label}([\n{body}\n{indent}])"
 
-        case Star(node=child) | Plus(node=child) | Optional(node=child):
+        case Star(node=child) | Plus(node=child) | Optional(node=child) | PositiveLookAhead(node=child) | NegativeLookAhead(node=child):
             label = type(node).__name__
             return f"{indent}{label}(\n{stringify_node(child, level + 1)}\n{indent})"
 

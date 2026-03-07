@@ -337,7 +337,10 @@ class TestParser(unittest.TestCase):
                                 max=21,
                                 is_lazy=True,
                             ),
-                            nodes.Star(nodes.Literal("a"),is_lazy=True,),
+                            nodes.Star(
+                                nodes.Literal("a"),
+                                is_lazy=True,
+                            ),
                         ]
                     ),
                     "groups": 0,
@@ -466,6 +469,72 @@ class TestParser(unittest.TestCase):
 
         run_tests(self, cases)
 
+    def test_parse_perl_ext(self):
+        cases = [
+            {
+                "regex": r"(?:abc)",
+                "expected": {
+                    "ast": nodes.Group(
+                        nodes.Group.NON_CAPTURE_ID,
+                        nodes.Sequence(
+                            [
+                                nodes.Literal("a"),
+                                nodes.Literal("b"),
+                                nodes.Literal("c"),
+                            ]
+                        ),
+                    ),
+                    "groups": 0,
+                },
+            },
+            {
+                "regex": r"(?=abc|cde)",
+                "expected": {
+                    "ast": nodes.PositiveLookAhead(
+                        nodes.Alternation(
+                            [
+                                nodes.Sequence(
+                                    [
+                                        nodes.Literal("a"),
+                                        nodes.Literal("b"),
+                                        nodes.Literal("c"),
+                                    ]
+                                ),
+                                nodes.Sequence(
+                                    [
+                                        nodes.Literal("c"),
+                                        nodes.Literal("d"),
+                                        nodes.Literal("e"),
+                                    ]
+                                ),
+                            ]
+                        ),
+                    ),
+                    "groups": 0,
+                },
+            },
+            {
+                "regex": r"(?!ab(c))",
+                "expected": {
+                    "ast": nodes.NegativeLookAhead(
+                        nodes.Sequence(
+                            [
+                                nodes.Literal("a"),
+                                nodes.Literal("b"),
+                                nodes.Group(
+                                    1,
+                                    nodes.Literal("c"),
+                                ),
+                            ]
+                        ),
+                    ),
+                    "groups": 1,
+                },
+            },
+        ]
+
+        run_tests(self, cases)
+
     def test_parse_backreference(self):
         cases = [
             {
@@ -567,7 +636,9 @@ class TestParser(unittest.TestCase):
                                             4,
                                             nodes.Range(
                                                 nodes.CharacterClass(
-                                                    chars={chr(i) for i in range(97, 123)},
+                                                    chars={
+                                                        chr(i) for i in range(97, 123)
+                                                    },
                                                     complement=False,
                                                 ),
                                                 min=1,

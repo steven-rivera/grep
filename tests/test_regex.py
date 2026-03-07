@@ -27,7 +27,7 @@ def run_tests(test: unittest.TestCase, test_cases):
         match = {
             "match": match.match,
             "span": match.span,
-            "captures": match.captures, 
+            "captures": match.captures,
         }
 
         test.assertEqual(
@@ -35,7 +35,6 @@ def run_tests(test: unittest.TestCase, test_cases):
             match,
             msg=f"Regex '{re}' on '{string}': {expected=} {match=}",
         )
-
 
 
 class TestMatch(unittest.TestCase):
@@ -695,6 +694,82 @@ class TestMatch(unittest.TestCase):
                 "regex": r"\Ba\B",
                 "string": "cat",
                 "expected": {"match": "a", "span": (1, 2), "captures": {}},
+            },
+        ]
+
+        run_tests(self, cases)
+
+    def test_perl_ext(self):
+        cases = [
+            {
+                "regex": r"foo(?:bar)",
+                "string": "foobar",
+                "expected": {"match": "foobar", "span": (0, 6), "captures": {}},
+            },
+            {
+                "regex": r"foo(?=bar)",
+                "string": "foobar",
+                "expected": {"match": "foo", "span": (0, 3), "captures": {}},
+            },
+            {
+                "regex": r"(?:ab)+",
+                "string": "abab",
+                "expected": {"match": "abab", "span": (0, 4), "captures": {}},
+            },
+            {
+                "regex": r"(?:a|b)+",
+                "string": "abba",
+                "expected": {"match": "abba", "span": (0, 4), "captures": {}},
+            },
+            {
+                "regex": r"(?:a(?:b|c))",
+                "string": "ac",
+                "expected": {"match": "ac", "span": (0, 2), "captures": {}},
+            },
+            {
+                "regex": r"(?:ab)+c",
+                "string": "abababc",
+                "expected": {"match": "abababc", "span": (0, 7), "captures": {}},
+            },
+            {
+                "regex": r"foo(?=bar)",
+                "string": "foobaz",
+                "expected": None,
+            },
+            {
+                "regex": r"foo(?!bar)",
+                "string": "foobar",
+                "expected": None,
+            },
+            {
+                "regex": r"foo(?!bar)",
+                "string": "foobaz",
+                "expected": {"match": "foo", "span": (0, 3), "captures": {}},
+            },
+            {
+                "regex": r"foo(?=(bar))",
+                "string": "foobar",
+                "expected": {"match": "foo", "span": (0, 3), "captures": {1: (3, 6)}},
+            },
+            {
+                "regex": r"a(?=b)c?",
+                "string": "ab",
+                "expected": {"match": "a", "span": (0, 1), "captures": {}},
+            },
+            {
+                "regex": r"\w+(?=\d)",
+                "string": "abc1",
+                "expected": {"match": "abc", "span": (0, 3), "captures": {}},
+            },
+            {
+                "regex": r"\d+(?!px)",
+                "string": "100em",
+                "expected": {"match": "100", "span": (0, 3), "captures": {}},
+            },
+            {
+                "regex": r"\w+(?!\d)",
+                "string": "abc",
+                "expected": {"match": "abc", "span": (0, 3), "captures": {}},
             },
         ]
 

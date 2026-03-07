@@ -25,51 +25,50 @@ The regex engine can also be imported as a standalone library. More info can be 
 
 #### Repetition Operators
 
-- `*` Greedily matches 0 or more occurrences of the previous element
+- `*`: Greedily matches 0 or more occurrences of the previous element
     - Ex: `ca*t` matches `ct` or `caaat` but not `cut`
-- `+` Greedily matches 1 or more occurrences of the previous element
+- `+`: Greedily matches 1 or more occurrences of the previous element
     - Ex: `do+g` matches `dog` or `dooog` but not `dg`
-- `?` Matches 0 or 1 occurrence of the previous element
+- `?`: Matches 0 or 1 occurrence of the previous element
     - Ex: `ba?t` matches `bat`or `bt` but not `baat`
 
 #### Ranges
 
-- `{n}` Matches exactly `n` occurrences of the previous element 
+- `{n}`: Matches exactly `n` occurrences of the previous element 
     - Ex: `ca{3}t` matches `caaat` but not `caat`
-- `{n,m}` Greedily matches between `n` and `m` occurrences of the previous element 
+- `{n,m}`: Greedily matches between `n` and `m` occurrences of the previous element 
     - Ex: `(ha){2,3}` matches `haha` and `hahaha` but not `ha`
-- `{n,}` Greedily matches `n` or more occurrences of the previous element 
+- `{n,}`: Greedily matches `n` or more occurrences of the previous element 
     - Ex: `bo{2,}` matches `boooo` but not `bo`
 
 ### Lazy Quantifiers
 
-- `*?` Matches as few characters as possible 
+- `*?`: Matches as few characters as possible 
     - Ex: `a*?` will match the empty string in `aaa` rather than the whole string
 
 `?` is supported after **all** quantifiers
 
 ### Meta Sequences
 
-- `\d` Matches any digit (0-9)
+- `\d`: Matches any digit (0-9)
     - Ex: `\d apples` matches `5 apples` but not `five apples`
-- `\D` Matches everything that is **not** a digit
-- `\w` Matches any word character (letters, digits, underscores). Same as `[a-zA-Z0-9_]`
+- `\D`: Matches everything that is **not** a digit
+- `\w`: Matches any word character (letters, digits, underscores). Same as `[a-zA-Z0-9_]`
     - Ex: `\w\w`matches `hi` but not `h!`
-- `\W` Matches everything that is **not** a word character
-- `\s` Matches any whitespace character (space, tab, newline)
+- `\W`: Matches everything that is **not** a word character
+- `\s`: Matches any whitespace character (space, tab, newline)
     - Es: `a\s+b` matches `a b`, `a  b`, `a   b` and so on 
-- `\S` Matches everything that is **not** a whitespace character
-- `\b` Matches, without consuming any characters, immediately between a character matched by `\w` and a character not matched by `\w` (in either order) 
+- `\S`: Matches everything that is **not** a whitespace character
+- `\b`: Matches, without consuming any characters, immediately between a character matched by `\w` and a character not matched by `\w` (in either order) 
     - Ex: `\bcar\b` matches `car` but not `racecar`
-
 
 ### Character Classes
 
-- `[...]` matches any one of the characters listed
+- `[...]`: matches any one of the characters listed
     - Ex: `[bc]at` matches `cat` but not `rat`
-- `[^...]` matches any character except the ones listed
+- `[^...]`: matches any character except the ones listed
     - Ex: `[^bc]at` matches `rat` but not `cat`
-- `[a-f]` matches any character in the range `a` - `f`
+- `[a-f]`: matches any character in the range `a` - `f`
     - Ex: `[a-f]at` matches `bat` but not `hat`
 
 ### Alternation
@@ -84,8 +83,16 @@ The regex engine can also be imported as a standalone library. More info can be 
 
 ### Backreference
 
-- `\n` refers to the nth grouped sub pattern, allowing you to reuse the matched text later in the pattern
+- `\n`: refers to the nth grouped sub pattern, allowing you to reuse the matched text later in the pattern
     - Ex: `(\w+) egg and \1 ham` matches `green eggs and green ham`
+
+### Perl Extensions
+
+- `(?:...)`: Non-capturing group. Allows you to apply quantifiers to part of your regex but does not capture/assign an ID to group
+- `(?=...)`: Asserts that the given subpattern can be matched here, without consuming characters
+    - Ex: `foo(?=bar)` matches `foo` in `foobar` but not the `foo` in `foobaz`
+- `(?!...)`: Asserts that the given subpattern does not match at the current position in the expression, without consuming characters.
+    - Ex: `foo(!=bar)` matches `foo` in `foobaz` but not the `foo` in `foobar`
 
 
 ## Regex Grammar
@@ -99,11 +106,12 @@ repetition         := atom (( '*' | '+' | '?' | range ) '?'?)?
 range              := '{' number (',' number?)? '}'
 number             := ('0' | '1' | ... | '9')+
 
-atom               := '.' | '^' | '$' | literal | charclass | group | backreference | metasequence | escape
-charclass          := '[' '^'? (literal | literal '-' literal)+ ']'
+atom               := '.' | '^' | '$' | literal | char_class | group | backref | meta_sequence | escape | perl_ext
+char_class         := '[' '^'? (literal | literal '-' literal)+ ']'
 group              := '(' regex ')'
-backreference      := '\' number
-metasequence       := '\' ('d' | 'D'| 'w' | 'W' | 's' | 'S' | 'b')
+per_lext           := '(?' (':' | '=' | '!') regex ')'
+backref            := '\' number
+meta_sequence      := '\' ('d' | 'D'| 'w' | 'W' | 's' | 'S' | 'b')
 escape             := '\' ('.' | '^' | '$' | '*' | '+' | '?' | '{' | '}' | '(' | ')' | '[' | ']' | '\' | '|')
 ```
 

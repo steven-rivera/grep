@@ -15,6 +15,8 @@ from .nodes import (
     Group,
     BackReference,
     Sequence,
+    PositiveLookAhead,
+    NegativeLookAhead,
 )
 
 
@@ -141,6 +143,8 @@ class Parser:
             self._consume()
             return EndAnchor()
 
+        if c == "?":
+            raise InvalidPattern("'?': The preceding token is not quantifiable")
         if c == ")":
             raise InvalidPattern("')': Unmatched group")
 
@@ -231,6 +235,10 @@ class Parser:
 
     def _parse_group(self) -> Node:
         self._consume("(")
+
+        if self._peek() == "?":
+            return self._parse_perl_ext()
+        
         group_id = self.curr_group_id
         self.curr_group_id += 1
 
@@ -241,6 +249,29 @@ class Parser:
 
         self._consume(")")
         return Group(group_id, node)
+    
+    def _parse_perl_ext(self) -> Node:
+        self._consume("?")
+
+        c = self._peek()
+
+        if c not in ":=!":
+            raise InvalidPattern(f"'{c}': Unsupport perl extension")
+        
+        self._consume()
+        node = self._parse_expression()
+
+        if c == ":":
+            node = Group(group_id=Group.NON_CAPTURE_ID, node=node)
+        if c == "=":
+            node = PositiveLookAhead(node=node)
+        if c == "!":
+            node = NegativeLookAhead(node=node)
+
+        self._consume(")")
+        
+        return node
+
 
     def _parse_charclass(self) -> Node:
         self._consume("[")
