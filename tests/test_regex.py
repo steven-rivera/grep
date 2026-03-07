@@ -8,38 +8,34 @@ def run_tests(test: unittest.TestCase, test_cases):
         string = case["string"]
         expected = case["expected"]
 
-        res = regex.compile(re).search(string)
+        match = regex.compile(re).search(string)
 
-        if res is None:
-            test.assertIsNone(
+        if match is None:
+            test.assertEqual(
+                match,
                 expected,
-                msg=f"Regex '{re}' on '{string}' expected None but got {res}",
+                msg=f"Regex '{re}' on '{string}': {expected=} match=None",
             )
 
             continue
 
         test.assertIsNotNone(
             expected,
-            msg=f"Regex '{re}' on '{string}' expected None but got {res}",
+            msg=f"Regex '{re}' on '{string}': expected=None {match=}",
         )
 
-        test.assertEqual(
-            res.match,
-            expected["match"],
-            msg=f"Regex '{re}' on '{string}' returned wrong match",
-        )
+        match = {
+            "match": match.match,
+            "span": match.span,
+            "captures": match.captures, 
+        }
 
         test.assertEqual(
-            res.span,
-            expected["span"],
-            msg=f"Regex '{re}' on '{string}' returned wrong span",
+            expected,
+            match,
+            msg=f"Regex '{re}' on '{string}': {expected=} {match=}",
         )
 
-        test.assertEqual(
-            res.captures,
-            expected["captures"],
-            msg=f"Regex '{re}' on '{string}' returned wrong captures",
-        )
 
 
 class TestMatch(unittest.TestCase):
@@ -234,13 +230,18 @@ class TestMatch(unittest.TestCase):
     def test_optional(self):
         cases = [
             {
+                "regex": r"a?",
+                "string": "a",
+                "expected": {"match": "a", "span": (0, 1), "captures": {}},
+            },
+            {
                 "regex": r"ab?",
-                "string": "ab",
+                "string": "abbb",
                 "expected": {"match": "ab", "span": (0, 2), "captures": {}},
             },
             {
                 "regex": r"ab?",
-                "string": "a",
+                "string": "aaaa",
                 "expected": {"match": "a", "span": (0, 1), "captures": {}},
             },
             {
@@ -294,6 +295,57 @@ class TestMatch(unittest.TestCase):
                 },
             },
             {"regex": r"(\d{3}-){2}\d{4}", "string": "123-45-7890", "expected": None},
+        ]
+
+        run_tests(self, cases)
+
+    def test_lazy_repetition(self):
+        cases = [
+            {
+                "regex": r"a*?",
+                "string": "aaa",
+                "expected": {"match": "", "span": (0, 0), "captures": {}},
+            },
+            {
+                "regex": r"ba*?",
+                "string": "b",
+                "expected": {"match": "b", "span": (0, 1), "captures": {}},
+            },
+            {
+                "regex": r"a+?",
+                "string": "aaa",
+                "expected": {"match": "a", "span": (0, 1), "captures": {}},
+            },
+            {
+                "regex": r"ba+?",
+                "string": "baaa",
+                "expected": {"match": "ba", "span": (0, 2), "captures": {}},
+            },
+            {
+                "regex": r"(a|aa)+?",
+                "string": "aaa",
+                "expected": {"match": "a", "span": (0, 1), "captures": {1: (0, 1)}},
+            },
+            {
+                "regex": r"a??",
+                "string": "a",
+                "expected": {"match": "", "span": (0, 0), "captures": {}},
+            },
+            {
+                "regex": r"a{3}?",
+                "string": "aaaaaa",
+                "expected": {"match": "aaa", "span": (0, 3), "captures": {}},
+            },
+            {
+                "regex": r"a{3,}?",
+                "string": "aaaaaa",
+                "expected": {"match": "aaa", "span": (0, 3), "captures": {}},
+            },
+            {
+                "regex": r"a{2,5}?",
+                "string": "aaaaaa",
+                "expected": {"match": "aa", "span": (0, 2), "captures": {}},
+            },
         ]
 
         run_tests(self, cases)
@@ -620,7 +672,7 @@ class TestMatch(unittest.TestCase):
 
         run_tests(self, cases)
 
-    def test_torture_case(self):
+    def test_torture_cases(self):
         cases = [
             {
                 "regex": r"(a*)*",

@@ -208,18 +208,20 @@ class MetaSequence(Node):
 
 
 class Star(Node):
-    def __init__(self, node: Node):
+    def __init__(self, node: Node, is_lazy: bool = False):
         self.node = node
+        self.is_lazy = is_lazy
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Star):
-            return other.node == self.node
+            return other.node == self.node and other.is_lazy == self.is_lazy
         return False
 
     def match(self, s: str, state: MatchState) -> list[MatchState]:
         results = [state]
-        queue = deque([state])
         visited = set([state])
+        queue = deque([state])
+        
 
         while len(queue) != 0:
             curr_state = queue.popleft()
@@ -232,23 +234,27 @@ class Star(Node):
                 queue.append(next_state)
                 results.append(next_state)
         
+        if self.is_lazy:
+            return list(reversed(results))
+        
         return results
 
 
 class Plus(Node):
-    def __init__(self, node: Node):
+    def __init__(self, node: Node, is_lazy: bool = False):
         self.node = node
+        self.is_lazy = is_lazy
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Plus):
-            return other.node == self.node
+            return other.node == self.node and other.is_lazy == self.is_lazy
         return False
 
     def match(self, s: str, state: MatchState) -> list[MatchState]:
         results = []
-        queue = deque([state])
         visited = set()
-
+        queue = deque([state])
+        
         while len(queue) != 0:
             curr_state = queue.popleft()
 
@@ -260,16 +266,20 @@ class Plus(Node):
                 queue.append(next_state)
                 results.append(next_state)
 
+        if self.is_lazy:
+            return list(reversed(results))
+        
         return results
 
 
 class Optional(Node):
-    def __init__(self, node: Node):
+    def __init__(self, node: Node, is_lazy: bool = False):
         self.node = node
+        self.is_lazy = is_lazy
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Optional):
-            return other.node == self.node
+            return other.node == self.node and other.is_lazy == self.is_lazy
         return False
 
     def match(self, s: str, state: MatchState) -> list[MatchState]:
@@ -283,14 +293,18 @@ class Optional(Node):
             visited.add(next_state)
             results.append(next_state)
 
+        if self.is_lazy:
+            return list(reversed(results))
+        
         return results
 
 
 class Range(Node):
-    def __init__(self, node: Node, min: int, max: int):
+    def __init__(self, node: Node, min: int, max: int, is_lazy: bool = False):
         self.node = node
         self.min = min
         self.max = max
+        self.is_lazy = is_lazy
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Range):
@@ -298,6 +312,7 @@ class Range(Node):
                 other.node == self.node
                 and other.min == self.min
                 and other.max == self.max
+                and other.is_lazy == self.is_lazy
             )
         return False
 
@@ -328,6 +343,8 @@ class Range(Node):
             results.extend(new_frontier)
             frontier = new_frontier
 
+        if self.is_lazy:
+            return list(reversed(results))
         return results
 
 

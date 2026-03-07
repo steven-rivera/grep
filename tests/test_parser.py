@@ -237,12 +237,6 @@ class TestParser(unittest.TestCase):
                     "groups": 0,
                 },
             },
-        ]
-
-        run_tests(self, cases)
-
-    def test_parse_range(self):
-        cases = [
             {
                 "regex": r"a{21}",
                 "expected": {
@@ -276,6 +270,74 @@ class TestParser(unittest.TestCase):
                                 max=21,
                             ),
                             nodes.Star(nodes.Literal("a")),
+                        ]
+                    ),
+                    "groups": 0,
+                },
+            },
+        ]
+
+        run_tests(self, cases)
+
+    def test_parse_lazy_quantifiers(self):
+        cases = [
+            {
+                "regex": r"a*?",
+                "expected": {
+                    "ast": nodes.Star(nodes.Literal("a"), is_lazy=True),
+                    "groups": 0,
+                },
+            },
+            {
+                "regex": r"a+?",
+                "expected": {
+                    "ast": nodes.Plus(nodes.Literal("a"), is_lazy=True),
+                    "groups": 0,
+                },
+            },
+            {
+                "regex": r"a??",
+                "expected": {
+                    "ast": nodes.Optional(nodes.Literal("a"), is_lazy=True),
+                    "groups": 0,
+                },
+            },
+            {
+                "regex": r"a{21}?",
+                "expected": {
+                    "ast": nodes.Range(
+                        nodes.Literal("a"),
+                        min=21,
+                        max=21,
+                        is_lazy=True,
+                    ),
+                    "groups": 0,
+                },
+            },
+            {
+                "regex": r"a{21,69}?",
+                "expected": {
+                    "ast": nodes.Range(
+                        node=nodes.Literal("a"),
+                        min=21,
+                        max=69,
+                        is_lazy=True,
+                    ),
+                    "groups": 0,
+                },
+            },
+            {
+                "regex": r"a{21,}?",
+                "expected": {
+                    "ast": nodes.Sequence(
+                        [
+                            nodes.Range(
+                                node=nodes.Literal("a"),
+                                min=21,
+                                max=21,
+                                is_lazy=True,
+                            ),
+                            nodes.Star(nodes.Literal("a"),is_lazy=True,),
                         ]
                     ),
                     "groups": 0,
@@ -456,7 +518,7 @@ class TestParser(unittest.TestCase):
 
         run_tests(self, cases)
 
-    def test_parse_torture(self):
+    def test_parse_torture_cases(self):
         cases = [
             {
                 "regex": r"^((PROD|TEST)-(\d{3,5})-([a-z]{1,2}))$",

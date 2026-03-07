@@ -40,6 +40,12 @@ class Parser:
         "|",
     }
 
+    QUANTIFIERS = {
+        "*": Star,
+        "+": Plus,
+        "?": Optional,
+    }
+
     def __init__(self, pattern: str) -> None:
         self.pattern = pattern
         self.i = 0
@@ -101,15 +107,16 @@ class Parser:
 
         c = self._peek()
 
-        if c == "*":
-            self._consume()
-            return Star(node)
-        if c == "+":
-            self._consume()
-            return Plus(node)
-        if c == "?":
-            self._consume()
-            return Optional(node)
+        if c in Parser.QUANTIFIERS:
+            self._consume(c)
+
+            is_lazy = False
+            if self._peek() == "?":
+                self._consume("?")
+                is_lazy = True
+
+            return Parser.QUANTIFIERS[c](node, is_lazy=is_lazy)
+
         if c == "{":
             return self._parse_range(node)
 
@@ -197,25 +204,30 @@ class Parser:
 
         if (c := self._peek()) != "}":
             raise InvalidPattern("Missing closing '}'")
+        
         self._consume("}")
+        is_lazy = False
+        if self._peek() == "?":
+            self._consume("?")
+            is_lazy = True
 
         # Case {n}
         if not seenMax:
-            return Range(node, int(min), int(min))
+            return Range(node, int(min), int(min), is_lazy=is_lazy)
 
         # Case {n,}
         if max == "":
             return Sequence(
                 [
-                    Range(node, int(min), int(min)),
-                    Star(node),
+                    Range(node, int(min), int(min), is_lazy=is_lazy),
+                    Star(node, is_lazy=is_lazy),
                 ]
             )
 
         # Case {n,m}
         if int(min) > int(max):
             raise InvalidPattern(f"'{min} > {max}': Range quantifier is out of order")
-        return Range(node, int(min), int(max))
+        return Range(node, int(min), int(max), is_lazy=is_lazy)
 
     def _parse_group(self) -> Node:
         self._consume("(")
