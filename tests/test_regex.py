@@ -143,6 +143,16 @@ class TestMatch(unittest.TestCase):
                 "string": "zzabcc",
                 "expected": {"match": "abcc", "span": (2, 6), "captures": {}},
             },
+            {
+                "regex": r"[a-]+",
+                "string": "a--",
+                "expected": {"match": "a--", "span": (0, 3), "captures": {}},
+            },
+            {
+                "regex": r"[-a]+",
+                "string": "--a",
+                "expected": {"match": "--a", "span": (0, 3), "captures": {}},
+            },
         ]
 
         run_tests(self, cases)

@@ -133,7 +133,7 @@ class Parser:
             return self._parse_charclass()
         if c == "\\":
             return self._parse_backslash()
-        
+
         self._consume()
 
         if c == ".":
@@ -205,7 +205,7 @@ class Parser:
 
         if (c := self._peek()) != "}":
             raise InvalidPattern("Missing closing '}'")
-        
+
         self._consume("}")
         is_lazy = False
         if self._peek() == "?":
@@ -235,7 +235,7 @@ class Parser:
 
         if self._peek() == "?":
             return self._parse_perl_ext()
-        
+
         group_id = self.curr_group_id
         self.curr_group_id += 1
 
@@ -246,7 +246,7 @@ class Parser:
 
         self._consume(")")
         return Group(group_id, node)
-    
+
     def _parse_perl_ext(self) -> Node:
         self._consume("?")
 
@@ -254,7 +254,7 @@ class Parser:
 
         if c not in ":=!":
             raise InvalidPattern(f"'{c}': Unsupport perl extension")
-        
+
         self._consume()
         node = self._parse_expression()
 
@@ -266,9 +266,8 @@ class Parser:
             node = NegativeLookAhead(node=node)
 
         self._consume(")")
-        
-        return node
 
+        return node
 
     def _parse_charclass(self) -> Node:
         self._consume("[")
@@ -281,34 +280,26 @@ class Parser:
         chars = []
 
         while self.i < len(self.pattern) and self._peek() != "]":
-            c = self._peek()
+            c = self._consume()
 
-            if c != "-" or len(chars) == 0:
-                chars.append(c)
-                self._consume()
-                continue
+            if len(chars) >= 2 and chars[-1] == "-" and not isinstance(chars[-2], list):
+                chars.pop()
+                start = chars.pop()
+                end = c
 
-            c = self._consume("-")
+                if ord(start) > ord(end):
+                    raise InvalidPattern(f"'{start}-{end}': Invalid character range")
 
-            if self.i >= len(self.pattern):
-                raise InvalidPattern("']': Unmatched bracket")
+                c = [chr(i) for i in range(ord(start), ord(end) + 1)]
 
-            if self._peek() == "]":
-                chars.append(c)
-                self._consume()
-                continue
-
-            start = chars.pop()
-            end = self._consume()
-
-            if ord(start) > ord(end):
-                raise InvalidPattern(f"'{start}-{end}': Invalid character range")
-
-            chars.extend([chr(i) for i in range(ord(start), ord(end) + 1)])
+            chars.append(c)
 
         if self._peek() != "]":
             raise InvalidPattern("']': Unmatched bracket")
-
         self._consume("]")
 
-        return CharacterClass(chars=set(chars), complement=complement)
+
+        return CharacterClass(
+            chars={c for sublist in chars for c in sublist},
+            complement=complement,
+        )
