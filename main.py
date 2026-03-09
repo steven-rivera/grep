@@ -1,16 +1,21 @@
 import regex
 import argparse
+import sys
 
 
 def highlight_matches(matches: list[regex.Match], text: str) -> str:
-    BOLD_RED = "\x1b[31;1m"
-    RESET = "\x1b[0m"
+    bold_red = "\x1b[31;1m"
+    reset = "\x1b[0m"
+
+    if not sys.stdout.isatty():
+        bold_red = ""
+        reset = ""
 
     s = ""
 
     prevEnd = 0
     for m in matches:
-        s += f"{text[prevEnd : m.start()]}{BOLD_RED}{text[m.start() : m.end()]}{RESET}"
+        s += f"{text[prevEnd : m.start()]}{bold_red}{text[m.start() : m.end()]}{reset}"
         prevEnd = m.end()
 
     s += text[prevEnd:]
