@@ -76,24 +76,34 @@ class Parser:
         self.i += 1
         return c
 
-    def _parse_expression(self) -> Node:
-        left = self._parse_sequence()
+    def _parse_expression(self, in_group=False) -> Node:
+        left = self._parse_sequence(in_group)
 
         if self._peek() == "|":
             options = [left]
 
             while self._peek() == "|":
                 self._consume("|")
-                options.append(self._parse_sequence())
+                options.append(self._parse_sequence(in_group))
 
             return Alternation(options)
 
         return left
 
-    def _parse_sequence(self) -> Node:
+    def _parse_sequence(self, in_group=False) -> Node:
         nodes = []
 
-        while self.i < len(self.pattern) and self._peek() not in "|)":
+        while self.i < len(self.pattern):
+            c = self._peek()
+
+            if c == "|":
+                break
+            
+            if c == ")":
+                if in_group:
+                    break   
+                raise InvalidPattern("')': Unmatched group")
+
             nodes.append(self._parse_repetition())
 
         if len(nodes) == 0:
@@ -107,15 +117,17 @@ class Parser:
     def _parse_repetition(self) -> Node:
         node = self._parse_atom()
 
+        if isinstance(node, StartAnchor):
+            return node
+
         c = self._peek()
 
         if c in Parser.QUANTIFIERS:
-            self._consume(c)
+            self._consume()
 
-            is_lazy = False
-            if self._peek() == "?":
+            is_lazy = self._peek() == "?"
+            if is_lazy:
                 self._consume("?")
-                is_lazy = True
 
             return Parser.QUANTIFIERS[c](node, is_lazy=is_lazy)
 
@@ -141,12 +153,14 @@ class Parser:
         if c == "^":
             return StartAnchor()
         if c == "$":
+            if self.i != len(self.pattern):
+                raise InvalidPattern("'$': End anchor must appear at end of pattern")
             return EndAnchor()
 
-        if c == "?":
-            raise InvalidPattern("'?': The preceding token is not quantifiable")
         if c == ")":
             raise InvalidPattern("')': Unmatched group")
+        if c in "*+?":
+            raise InvalidPattern(f"'{c}': Preceding token is not quantifiable")
 
         return Literal(c)
 
@@ -207,10 +221,9 @@ class Parser:
             raise InvalidPattern("Missing closing '}'")
 
         self._consume("}")
-        is_lazy = False
-        if self._peek() == "?":
+        is_lazy = self._peek() == "?"
+        if is_lazy:
             self._consume("?")
-            is_lazy = True
 
         # Case {n}
         if not seenMax:
@@ -239,7 +252,7 @@ class Parser:
         group_id = self.curr_group_id
         self.curr_group_id += 1
 
-        node = self._parse_expression()
+        node = self._parse_expression(in_group=True)
 
         if self._peek() != ")":
             raise InvalidPattern("')': Unmatched parenthesis")
@@ -256,7 +269,7 @@ class Parser:
             raise InvalidPattern(f"'{c}': Unsupport perl extension")
 
         self._consume()
-        node = self._parse_expression()
+        node = self._parse_expression(in_group=True)
 
         if c == ":":
             node = Group(group_id=Group.NON_CAPTURE_ID, node=node)
