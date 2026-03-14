@@ -1,6 +1,7 @@
 import unittest
 import regex.parser as parser
 import regex.nodes as nodes
+from regex.parser import InvalidPattern
 
 
 def run_tests(test: unittest.TestCase, test_cases):
@@ -671,3 +672,23 @@ class TestParser(unittest.TestCase):
         ]
 
         run_tests(self, cases)
+
+    def test_invalid_regex_raise_exception(self):
+        cases = [
+            r")",
+            r"a)",
+            r"?",
+            r"*",
+            r"+",
+            r"^?",
+            r"^*",
+            r"^+",
+            r".**",
+            r"$a",
+        ]
+
+        for case in cases:
+            with self.assertRaises(
+                InvalidPattern, msg=f"Expected error when parsing '{case}'"
+            ):
+                _ = parser.Parser(case).parse()
