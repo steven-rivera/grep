@@ -155,6 +155,7 @@ class Parser:
         if c == "$":
             if self.i != len(self.pattern):
                 raise InvalidPattern("'$': End anchor must appear at end of pattern")
+            
             return EndAnchor()
 
         if c == ")":
@@ -217,7 +218,7 @@ class Parser:
             max += c
             self._consume()
 
-        if (c := self._peek()) != "}":
+        if self._peek() != "}":
             raise InvalidPattern("Missing closing '}'")
 
         self._consume("}")
@@ -266,7 +267,7 @@ class Parser:
         c = self._peek()
 
         if c not in ":=!":
-            raise InvalidPattern(f"'{c}': Unsupport perl extension")
+            raise InvalidPattern(f"'{c}': Unsupported perl extension")
 
         self._consume()
         node = self._parse_expression(in_group=True)
@@ -285,9 +286,8 @@ class Parser:
     def _parse_charclass(self) -> Node:
         self._consume("[")
 
-        complement = False
-        if self._peek() == "^":
-            complement = True
+        complement = self._peek() == "^"
+        if complement:
             self._consume("^")
 
         chars = []
@@ -309,6 +309,7 @@ class Parser:
 
         if self._peek() != "]":
             raise InvalidPattern("']': Unmatched bracket")
+        
         self._consume("]")
 
         return CharacterClass(
