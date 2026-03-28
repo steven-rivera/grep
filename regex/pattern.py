@@ -1,11 +1,11 @@
 from .match import Match, MatchState
 from .parser import Parser
-from . import nodes
+from .nodes import Node
 from typing import Iterator
 
 
 class Pattern:
-    def __init__(self, pattern: str, numGroups: int, ast: nodes.Node):
+    def __init__(self, pattern: str, numGroups: int, ast: Node):
         self.pattern = pattern
         self._numGroups = numGroups
         self._ast = ast
@@ -41,6 +41,7 @@ class Pattern:
                 span=(i, ms.pos),
                 match=s[i : ms.pos],
                 captures=ms.captures,
+                string=s
             )
 
             yield m

@@ -6,6 +6,7 @@ class Match:
     match: str
     span: tuple[int, int]
     captures: dict[int, tuple[int, int]]
+    string: str
 
     def start(self) -> int:
         return self.span[0]
