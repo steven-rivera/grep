@@ -20,19 +20,25 @@ def print_matches(
     line_num: int,
     args: argparse.Namespace,
 ):
-    prefix = ""
-    if len(args.FILE) > 1 or args.recursive:
-        prefix = f"{MAGENTA}{file}{RESET}:"
-    if args.line_number:
-        prefix += f"{GREEN}{line_num}{RESET}:"
 
-    highlight_matches = args.color == ALWAYS or (
-        sys.stdout.isatty() and args.color != NEVER
-    )
+    color_output = args.color == ALWAYS or (sys.stdout.isatty() and args.color != NEVER)
+
+    prefix = ""
+
+    if len(args.FILE) > 1 or args.recursive:
+        if color_output:
+            prefix += f"{MAGENTA}{file}{RESET}:"
+        else:
+            prefix += f"{file}:"
+    if args.line_number:
+        if color_output:
+            prefix += f"{GREEN}{line_num}{RESET}:"
+        else:
+            prefix += f"{line_num}:"
 
     if args.only_matching:
         for m in matches:
-            if highlight_matches:
+            if color_output:
                 print(f"{prefix}{BOLD_RED}{m.match}{RESET}")
             else:
                 print(f"{prefix}{m.match}")
@@ -42,7 +48,7 @@ def print_matches(
     prevEnd = 0
 
     for m in matches:
-        if highlight_matches:
+        if color_output:
             s += f"{line[prevEnd : m.start()]}{BOLD_RED}{m.match}{RESET}"
         else:
             s += f"{line[prevEnd : m.start()]}{m.match}"
