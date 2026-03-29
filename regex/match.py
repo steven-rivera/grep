@@ -44,3 +44,6 @@ class MatchState:
     pos: int
     # Keys are group ID's and values are the start and end index of captured group
     captures: dict[int, tuple[int, int]]
+
+    def __hash__(self):
+        return hash((self.pos, tuple(sorted(self.captures.items()))))
