@@ -1,79 +1,204 @@
-import regex
 import argparse
 import sys
+from pathlib import Path
+import regex
+
+BOLD_RED = "\x1b[1;31m"
+GREEN = "\x1b[32m"
+MAGENTA = "\x1b[35m"
+RESET = "\x1b[0m"
+
+ALWAYS = "always"
+NEVER = "never"
+AUTO = "auto"
 
 
-def highlight_matches(matches: list[regex.Match], text: str) -> str:
-    bold_red = "\x1b[31;1m"
-    reset = "\x1b[0m"
+def print_matches(
+    matches: list[regex.Match],
+    file: Path | None,
+    line: str,
+    line_num: int,
+    args: argparse.Namespace,
+):
+    prefix = ""
+    if len(args.FILE) > 1 or args.recursive:
+        prefix = f"{MAGENTA}{file}{RESET}:"
+    if args.line_number:
+        prefix += f"{GREEN}{line_num}{RESET}:"
 
-    if not sys.stdout.isatty():
-        bold_red = ""
-        reset = ""
+    highlight_matches = args.color == ALWAYS or (
+        sys.stdout.isatty() and args.color != NEVER
+    )
 
-    s = ""
+    if args.only_matching:
+        for m in matches:
+            if highlight_matches:
+                print(f"{prefix}{BOLD_RED}{m.match}{RESET}")
+            else:
+                print(f"{prefix}{m.match}")
+        return
 
+    s = prefix
     prevEnd = 0
+
     for m in matches:
-        s += f"{text[prevEnd : m.start()]}{bold_red}{text[m.start() : m.end()]}{reset}"
+        if highlight_matches:
+            s += f"{line[prevEnd : m.start()]}{BOLD_RED}{m.match}{RESET}"
+        else:
+            s += f"{line[prevEnd : m.start()]}{m.match}"
+
         prevEnd = m.end()
 
-    s += text[prevEnd:]
+    s += line[prevEnd:]
 
-    return s
+    print(s)
 
 
-def search_stdin(pattern: regex.Pattern):
+def search_stdin(pattern: regex.Pattern, args: argparse.Namespace) -> int:
+    n = 0
+    line_num = 1
+
     while True:
         try:
-            text = input()
+            line = input()
         except EOFError:
-            return
+            return n
 
-        matches = pattern.findall(text)
+        matches = pattern.findall(line)
 
         if len(matches) == 0:
-            print("> No matches")
             continue
 
-        print(highlight_matches(matches, text))
+        print_matches(
+            matches,
+            None,
+            line,
+            line_num,
+            args,
+        )
+
+        n += len(matches)
+        line_num += 1
 
 
-def search_file(pattern: regex.Pattern, file: str):
-    try:
-        with open(file) as f:
-            for line_num, line in enumerate(f, start=1):
-                line = line.rstrip("\n")
-                matches = pattern.findall(line)
+def search_dir(dir: Path, pattern: regex.Pattern, args: argparse.Namespace) -> int:
+    n = 0
+    for dirpath, _, filenames in dir.walk():
+        for filename in filenames:
+            n += search_file(dirpath / filename, pattern, args)
 
-                if len(matches) == 0:
-                    continue
+    return n
 
-                print(f"{line_num}: {highlight_matches(matches, line)}")
-    except FileNotFoundError as e:
-        print(f"Error: {e}")
+
+def search_file(file: Path, pattern: regex.Pattern, args: argparse.Namespace) -> int:
+    n = 0
+
+    with open(file) as f:
+        for line_num, line in enumerate(f, start=1):
+            line = line.rstrip("\n")
+            matches = pattern.findall(line)
+
+            if len(matches) == 0:
+                continue
+
+            print_matches(
+                matches,
+                file,
+                line,
+                line_num,
+                args,
+            )
+
+            n += len(matches)
+
+    return n
+
+
+def search_files(pattern: regex.Pattern, args: argparse.Namespace) -> int:
+    num_matches = 0
+
+    for file in args.FILE:
+        path = Path(file)
+
+        if not path.exists():
+            print(f"{path}: No such file or directory", file=sys.stderr)
+            continue
+
+        if path.is_file():
+            num_matches += search_file(path, pattern, args)
+        elif args.recursive:
+            num_matches += search_dir(path, pattern, args)
+        else:
+            print(f"{path}: Is a directory", file=sys.stderr)
+
+    return num_matches
+
+
+def parse_command_line_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "A regular expression pattern matching tool.\n"
+            "Search for PATTERN in each FILE. If no FILE is given\n"
+            "read from stdin or search files in '.' if -r is specified."
+        ),
+        formatter_class=argparse.RawTextHelpFormatter,  # Allows newlines in help messages
+    )
+    parser.add_argument(
+        "-r",
+        "--recursive",
+        action="store_true",
+        help=(
+            "if FILE is a directory, recursively search each\n"
+            "file in the directory for PATTERN"
+        ),
+    )
+    parser.add_argument(
+        "-o",
+        "--only-matching",
+        action="store_true",
+        help="print only the matching text",
+    )
+    parser.add_argument(
+        "-n",
+        "--line-number",
+        action="store_true",
+        help="print line number with output lines",
+    )
+    parser.add_argument(
+        "--color",
+        choices=[ALWAYS, NEVER, AUTO],
+        default=AUTO,
+        help=(
+            "always: Always highlight matches in output\n"
+            "auto: Highlight matches only when outputing to a TTY\n"
+            "never: Never highlight matches in output"
+        ),
+    )
+    parser.add_argument("PATTERN", help="regular expression pattern")
+    parser.add_argument("FILE", nargs="*", help="Search for PATTERN in each FILE")
+
+    return parser.parse_args()
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("PATTERN", help="regular expression pattern")
-    parser.add_argument(
-        "-f",
-        "--file",
-        help="file to search for all occurences of pattern. If no file is provided read from stdin",
-    )
-
-    args = parser.parse_args()
+    args = parse_command_line_args()
 
     try:
         pattern = regex.compile(args.PATTERN)
     except regex.InvalidPattern as e:
-        print(f"Error: {e}")
+        print("Error:", e)
+        sys.exit(2)
+
+    num_matches = 0
+    if len(args.FILE) > 0:
+        num_matches = search_files(pattern, args)
+    elif args.recursive:
+        num_matches = search_dir(Path("."), pattern, args)
     else:
-        if args.file is not None:
-            search_file(pattern, args.file)
-        else:
-            search_stdin(pattern)
+        num_matches = search_stdin(pattern, args)
+
+    if num_matches == 0:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
