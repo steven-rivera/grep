@@ -21,38 +21,29 @@ def print_matches(
     args: argparse.Namespace,
 ):
 
-    color_output = args.color == ALWAYS or (sys.stdout.isatty() and args.color != NEVER)
+    def fmt(value, color):
+        color_output = args.color == ALWAYS or (
+            sys.stdout.isatty() and args.color != NEVER
+        )
+        return f"{color}{value}{RESET}" if color_output else str(value)
 
     prefix = ""
 
     if len(args.FILE) > 1 or args.recursive:
-        if color_output:
-            prefix += f"{MAGENTA}{file}{RESET}:"
-        else:
-            prefix += f"{file}:"
+        prefix += f"{fmt(file, MAGENTA)}:"
     if args.line_number:
-        if color_output:
-            prefix += f"{GREEN}{line_num}{RESET}:"
-        else:
-            prefix += f"{line_num}:"
+        prefix += f"{fmt(line_num, GREEN)}:"
 
     if args.only_matching:
         for m in matches:
-            if color_output:
-                print(f"{prefix}{BOLD_RED}{m.match}{RESET}")
-            else:
-                print(f"{prefix}{m.match}")
+            print(f"{prefix}{fmt(m.match, BOLD_RED)}")
         return
 
     s = prefix
     prevEnd = 0
 
     for m in matches:
-        if color_output:
-            s += f"{line[prevEnd : m.start()]}{BOLD_RED}{m.match}{RESET}"
-        else:
-            s += f"{line[prevEnd : m.start()]}{m.match}"
-
+        s += f"{line[prevEnd : m.start()]}{fmt(m.match, BOLD_RED)}"
         prevEnd = m.end()
 
     s += line[prevEnd:]
@@ -87,15 +78,6 @@ def search_stdin(pattern: regex.Pattern, args: argparse.Namespace) -> int:
         line_num += 1
 
 
-def search_dir(dir: Path, pattern: regex.Pattern, args: argparse.Namespace) -> int:
-    n = 0
-    for dirpath, _, filenames in dir.walk():
-        for filename in filenames:
-            n += search_file(dirpath / filename, pattern, args)
-
-    return n
-
-
 def search_file(file: Path, pattern: regex.Pattern, args: argparse.Namespace) -> int:
     n = 0
 
@@ -119,6 +101,15 @@ def search_file(file: Path, pattern: regex.Pattern, args: argparse.Namespace) ->
                 n += len(matches)
         except UnicodeDecodeError:
             return 0
+
+    return n
+
+
+def search_dir(dir: Path, pattern: regex.Pattern, args: argparse.Namespace) -> int:
+    n = 0
+    for dirpath, _, filenames in dir.walk():
+        for filename in filenames:
+            n += search_file(dirpath / filename, pattern, args)
 
     return n
 
