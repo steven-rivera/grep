@@ -27,6 +27,14 @@ class TestProgramOutput(unittest.TestCase):
     def test_main_when_reading_stdin(self):
         test_cases = [
             {
+                "argv": ["grep.py", "--color=never", r"\d"],
+                "stdin": StringIO("Line1: 10\nLine2: 42"),
+                "expected": [
+                    "Line1: 10\n",
+                    "Line2: 42\n",
+                ],
+            },
+            {
                 "argv": ["grep.py", "--color=never", "-o", r"\d"],
                 "stdin": StringIO("Line1: 10\nLine2: 42"),
                 "expected": [
@@ -66,7 +74,7 @@ class TestProgramOutput(unittest.TestCase):
         test_cases = [
             {
                 "argv": ["grep.py", "--color=never", "-r", r".*ar", "mock/"],
-                "stdin": StringIO("Line1: 10\nLine2: 42"),
+                "stdin": None,
                 "expected": [
                     "mock/fruits.txt:pear\n",
                     "mock/subdir/vegetables.txt:carrot\n",
@@ -74,7 +82,7 @@ class TestProgramOutput(unittest.TestCase):
             },
             {
                 "argv": ["grep.py", "--color=always", "-r", r".*ar", "mock/"],
-                "stdin": StringIO("Line1: 10\nLine2: 42"),
+                "stdin": None,
                 "expected": [
                     f"{MAGENTA}mock/fruits.txt{RESET}:{BOLD_RED}pear{RESET}\n",
                     f"{MAGENTA}mock/subdir/vegetables.txt{RESET}:{BOLD_RED}car{RESET}rot\n",
