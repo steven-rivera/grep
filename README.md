@@ -61,6 +61,8 @@ The regex engine can also be imported as a standalone package. Info on the API t
 - `\S`: Matches everything that is **not** a whitespace character
 - `\b`: Matches, without consuming any characters, immediately between a character matched by `\w` and a character not matched by `\w` (in either order) 
     - Ex: `\bcar\b` matches `car` but not `racecar`
+- `\B`: Matches, without consuming any characters, at the position between two characters matched by \w or \W. 
+    - Ex: `r\B` matches `regex` but not `car!`
 
 ### Character Classes
 
@@ -111,7 +113,7 @@ char_class         := '[' '^'? (literal | literal '-' literal)+ ']'
 group              := '(' regex ')'
 perl_ext           := '(?' (':' | '=' | '!') regex ')'
 backref            := '\' number
-meta_sequence      := '\' ('d' | 'D'| 'w' | 'W' | 's' | 'S' | 'b')
+meta_sequence      := '\' ('d' | 'D'| 'w' | 'W' | 's' | 'S' | 'b' | 'B')
 escape             := '\' ('.' | '^' | '$' | '*' | '+' | '?' | '{' | '}' | '(' | ')' | '[' | ']' | '\' | '|')
 ```
 
