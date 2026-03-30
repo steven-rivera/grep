@@ -100,22 +100,25 @@ def search_file(file: Path, pattern: regex.Pattern, args: argparse.Namespace) ->
     n = 0
 
     with open(file) as f:
-        for line_num, line in enumerate(f, start=1):
-            line = line.rstrip("\n")
-            matches = pattern.findall(line)
+        try:
+            for line_num, line in enumerate(f, start=1):
+                line = line.rstrip("\n")
+                matches = pattern.findall(line)
 
-            if len(matches) == 0:
-                continue
+                if len(matches) == 0:
+                    continue
 
-            print_matches(
-                matches,
-                file,
-                line,
-                line_num,
-                args,
-            )
+                print_matches(
+                    matches,
+                    file,
+                    line,
+                    line_num,
+                    args,
+                )
 
-            n += len(matches)
+                n += len(matches)
+        except UnicodeDecodeError:
+            return 0
 
     return n
 
